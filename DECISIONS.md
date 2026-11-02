@@ -583,3 +583,11 @@ D20's open question.
 
 Open: a trailing `if` on `=` (`bonus = 10 if lucky`): when the test is false, the variable is never made, so later
 lines could use one that doesn't exist.
+
+## D44 — `=` takes no trailing `if` (2026-11-02)
+
+Owner: "opt 1" (of redstone design claude's three: a mistake; allowed with later uses checked; allowed with a
+default). Settles D43's open question.
+
+`bonus = 10 if lucky` is a mistake: a false test would leave `bonus` unmade for the lines after it. A variable is
+made first, then changed with `becomes … if`.

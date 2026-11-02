@@ -1,5 +1,0 @@
-not decided yet: d43_on_create.redstone:2:12, line 2 column 12
- 2 | bonus = 10 if lucky
-   |            ^^
- what: a trailing `if` on `=`, which might leave the variable unmade
- why:  this part of Redstone's design is still open (D43)

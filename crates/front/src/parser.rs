@@ -427,11 +427,12 @@ impl Parser<'_> {
                 Ok(())
             }
             TokenKind::End => Ok(()),
-            TokenKind::Keyword(Keyword::If) => Err(Diagnostic::not_decided(
-                "a trailing `if` on `=`, which might leave the variable unmade",
-                Some("D43"),
+            // D44
+            TokenKind::Keyword(Keyword::If) => Err(Diagnostic::mistake(
+                "`=` can't take a trailing `if`",
                 token.span,
-            )),
+            )
+            .because("a false test would leave the variable unmade; make it first, then use `becomes … if`")),
             TokenKind::Name(word) => Err(self.stray_word(word, token.span)),
             TokenKind::Count(_) => Err(Diagnostic::not_decided(
                 "a count like `50x` anywhere but right after `show`'s value",
