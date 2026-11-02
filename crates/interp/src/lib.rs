@@ -102,14 +102,8 @@ impl Machine<'_> {
         let Some(Value::Table(table)) = self.slots.get_mut(slot) else {
             return Err(type_bug(name_span));
         };
-        // Whether another holder of the same table sees the change is still open, so a shared table stops here.
-        let Some(contents) = Rc::get_mut(table) else {
-            return Err(Diagnostic::not_decided(
-                "changing a table that something else also holds",
-                Some("D35"),
-                name_span,
-            ));
-        };
+        // D37: tables are copied, not shared, so a table something else also holds is copied before it changes.
+        let contents = Rc::make_mut(table);
         match (contents, target) {
             (Table::InOrder(values), Target::Index(index_value, counting, span)) => {
                 let length = values.len();

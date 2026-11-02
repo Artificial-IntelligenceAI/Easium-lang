@@ -1,3 +1,0 @@
-a = 1, 2
-b = a
-value at position 1 in b is_now 5

@@ -453,3 +453,18 @@ between tiers much harder, and Cranelift's code is usually within a modest facto
   Redstone knows (its types, rationals, tables).
 
 Open: which optimizations, and in what order.
+
+## D37 — Tables are copied, not shared (2026-11-02)
+
+Owner: "yes" (to redstone design claude's recommendation, over sharing as in Lua, Python and Ruby).
+
+`b = a` gives `b` its own table, as numbers and text already behave: changing an item in `b` leaves `a` as it was.
+The same holds for a table put inside another table. Copies are made only when something changes (copy-on-write),
+so passing a table around costs nothing until then. Settles D35's open question.
+
+```
+a = 1, 2
+b = a
+value at position 1 in b is_now 5
+show value at position 1 in a     # 1
+```

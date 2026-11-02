@@ -1,0 +1,10 @@
+a = 1, 2
+b = a
+value at position 1 in b is_now 5
+show value at position 1 in a
+show value at position 1 in b
+row = 1, 2
+grid = row, row
+value at position 1 in row is_now 9
+show value at position 1 in value at position 1 in grid
+show value at position 1 in row
