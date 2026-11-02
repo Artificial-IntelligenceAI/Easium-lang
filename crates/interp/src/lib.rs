@@ -5,7 +5,9 @@ use std::cmp::Ordering;
 use std::io::{BufRead, Write};
 use std::rc::Rc;
 
-use redstone_front::ir::{Arithmetic, Comparison, Counting, Expr, ExprKind, Program, Stmt};
+use redstone_front::ir::{
+    Arithmetic, Comparison, Counting, Expr, ExprKind, Program, Selector, Stmt,
+};
 use redstone_front::{Diagnostic, Span};
 use redstone_runtime::{Rational, RationalError, Table, Value};
 
@@ -59,6 +61,12 @@ impl Machine<'_> {
                 }
                 self.show(value)
             }
+            Stmt::ChangeItem {
+                slot,
+                selector,
+                value,
+                name_span,
+            } => self.change_item(*slot, selector, value, *name_span),
             Stmt::If {
                 branches,
                 otherwise,
@@ -70,6 +78,58 @@ impl Machine<'_> {
                 }
                 self.block(otherwise)
             }
+        }
+    }
+
+    // D35
+    fn change_item(
+        &mut self,
+        slot: usize,
+        selector: &Selector,
+        value: &Expr,
+        name_span: Span,
+    ) -> Result<(), Diagnostic> {
+        let target = match selector {
+            Selector::Index(index, counting) => {
+                let Value::Int(index_value) = self.evaluate(index)? else {
+                    return Err(type_bug(index.span));
+                };
+                Target::Index(index_value, *counting, index.span)
+            }
+            Selector::Key(key) => Target::Key(self.evaluate(key)?, key.span),
+        };
+        let new_value = self.evaluate(value)?;
+        let Some(Value::Table(table)) = self.slots.get_mut(slot) else {
+            return Err(type_bug(name_span));
+        };
+        // Whether another holder of the same table sees the change is still open, so a shared table stops here.
+        let Some(contents) = Rc::get_mut(table) else {
+            return Err(Diagnostic::not_decided(
+                "changing a table that something else also holds",
+                Some("D35"),
+                name_span,
+            ));
+        };
+        match (contents, target) {
+            (Table::InOrder(values), Target::Index(index_value, counting, span)) => {
+                let length = values.len();
+                let item = index_slot(values, index_value, counting)
+                    .ok_or_else(|| missing_index(index_value, counting, length, span))?;
+                *item = new_value;
+                Ok(())
+            }
+            (Table::Keyed(pairs), Target::Key(key, span)) => {
+                let item = pairs
+                    .iter_mut()
+                    .find(|(existing, _)| *existing == key)
+                    .map(|(_, value)| value)
+                    .ok_or_else(|| {
+                        Diagnostic::not_decided("adding a key by changing it", Some("D35"), span)
+                    })?;
+                *item = new_value;
+                Ok(())
+            }
+            _ => Err(type_bug(name_span)),
         }
     }
 
@@ -196,23 +256,10 @@ impl Machine<'_> {
         let Table::InOrder(values) = &*contents else {
             return Err(type_bug(span));
         };
-        let (word, first) = match counting {
-            Counting::Position => ("position", 1),
-            Counting::Offset => ("offset", 0),
-        };
-        let found = index_value
-            .checked_sub(first)
-            .and_then(|zero_based| usize::try_from(zero_based).ok())
-            .and_then(|zero_based| values.get(zero_based));
-        if let Some(value) = found {
-            return Ok(value.clone());
-        }
-        let last = i64::try_from(values.len()).unwrap_or(i64::MAX) - 1 + first;
-        Err(Diagnostic::mistake(
-            format!("there's no {word} {index_value} in this table"),
-            index.span,
-        )
-        .because(format!("this table has {word}s {first} to {last}")))
+        zero_based(index_value, counting)
+            .and_then(|zero_based| values.get(zero_based))
+            .cloned()
+            .ok_or_else(|| missing_index(index_value, counting, values.len(), index.span))
     }
 
     fn read_key(&mut self, table: &Expr, key: &Expr, span: Span) -> Result<Value, Diagnostic> {
@@ -344,6 +391,37 @@ fn rational_error(error: RationalError, span: Span) -> Diagnostic {
 
 fn division_by_zero(span: Span) -> Diagnostic {
     Diagnostic::not_decided("what dividing by zero does", Some("D16"), span)
+}
+
+/// An item to change, its selector already worked out.
+enum Target {
+    Index(i64, Counting, Span),
+    Key(Value, Span),
+}
+
+fn zero_based(index: i64, counting: Counting) -> Option<usize> {
+    let first = match counting {
+        Counting::Position => 1,
+        Counting::Offset => 0,
+    };
+    index
+        .checked_sub(first)
+        .and_then(|zero_based| usize::try_from(zero_based).ok())
+}
+
+fn index_slot(values: &mut [Value], index: i64, counting: Counting) -> Option<&mut Value> {
+    zero_based(index, counting).and_then(|zero_based| values.get_mut(zero_based))
+}
+
+// D32, D34: reading or changing what isn't there is an error.
+fn missing_index(index: i64, counting: Counting, length: usize, span: Span) -> Diagnostic {
+    let (word, first) = match counting {
+        Counting::Position => ("position", 1),
+        Counting::Offset => ("offset", 0),
+    };
+    let last = i64::try_from(length).unwrap_or(i64::MAX) - 1 + first;
+    Diagnostic::mistake(format!("there's no {word} {index} in this table"), span)
+        .because(format!("this table has {word}s {first} to {last}"))
 }
 
 fn described_key(key: &Value) -> String {

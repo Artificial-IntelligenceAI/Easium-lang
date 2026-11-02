@@ -1,0 +1,3 @@
+row = 1, 2
+grid = row, row
+value at position 1 in (value at position 1 in grid) is_now 5

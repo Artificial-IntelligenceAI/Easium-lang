@@ -1,0 +1,5 @@
+stopped: d35_out_of_range.redstone:2:19, line 2 column 19
+ 2 | value at position 3 in scores is_now 1
+   |                   ^
+ what: there's no position 3 in this table
+ why:  this table has positions 1 to 2

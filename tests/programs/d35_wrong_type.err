@@ -1,0 +1,5 @@
+stopped: d35_wrong_type.redstone:2:38, line 2 column 38
+ 2 | value at position 1 in scores is_now "high"
+   |                                      ^^^^^^
+ what: this item is an int, so it can't become text
+ why:  a table keeps the types it was made with

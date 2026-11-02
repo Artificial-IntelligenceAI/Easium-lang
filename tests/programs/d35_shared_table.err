@@ -1,0 +1,5 @@
+not decided yet: d35_shared_table.redstone:3:24, line 3 column 24
+ 3 | value at position 1 in b is_now 5
+   |                        ^
+ what: changing a table that something else also holds
+ why:  this part of Redstone's design is still open (D35)

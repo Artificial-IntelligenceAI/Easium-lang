@@ -1,0 +1,10 @@
+scores = 90, 65, 70
+value at position 1 in scores is_now 95
+value at offset 2 in scores is_now value at position 2 in scores plus 1
+show value at position 1 in scores
+show value at position 3 in scores
+ages = table:
+"Ada": 36
+end_of table
+value of "Ada" in ages is_now 37
+show value of "Ada" in ages

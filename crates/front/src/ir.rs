@@ -89,6 +89,17 @@ pub enum Stmt {
         /// Shown only when this is true.
         condition: Option<Expr>,
     },
+    /// Changes one item of the table in a slot (D35).
+    ChangeItem {
+        /// The slot holding the table.
+        slot: usize,
+        /// Which item.
+        selector: Selector,
+        /// Its new value.
+        value: Expr,
+        /// Where the table's name is, for errors while running.
+        name_span: Span,
+    },
     /// Runs the first block whose condition holds, or the `else` block.
     If {
         /// Each condition and its block, in order.
@@ -96,6 +107,15 @@ pub enum Stmt {
         /// The `else` block; empty when there is none.
         otherwise: Vec<Stmt>,
     },
+}
+
+/// Which item of a table, checked (D34, D35).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Selector {
+    /// A position or offset, an int.
+    Index(Expr, Counting),
+    /// A key.
+    Key(Expr),
 }
 
 /// A checked expression, with where it is, for errors while running.

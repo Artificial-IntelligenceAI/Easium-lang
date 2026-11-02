@@ -99,6 +99,12 @@ impl Checker {
                     .transpose()?;
                 Ok(ir::Stmt::Show { value, condition })
             }
+            ast::Stmt::ChangeItem {
+                name,
+                name_span,
+                selector,
+                value,
+            } => self.change_item(name, *name_span, selector, value),
             ast::Stmt::If {
                 branches,
                 otherwise,
@@ -177,6 +183,57 @@ impl Checker {
         Ok(ir::Stmt::Assign {
             slot: variable.slot,
             value,
+        })
+    }
+
+    // D35: the new value has the type of the table's values.
+    fn change_item(
+        &mut self,
+        name: &str,
+        name_span: Span,
+        selector: &ast::Selector,
+        value: &ast::Expr,
+    ) -> Result<ir::Stmt, Diagnostic> {
+        let variable = self.variable(
+            name,
+            name_span,
+            "a variable has to be made with `=` before its items can change",
+        )?;
+        let table = ast::Expr {
+            kind: ExprKind::Name(name.to_owned()),
+            span: name_span,
+        };
+        let (read, item_type) = match selector {
+            ast::Selector::Index(index, counting) => {
+                self.read_position(&table, index, *counting)?
+            }
+            ast::Selector::Key(key) => self.read_key(&table, key)?,
+        };
+        let selector = match read {
+            ir::ExprKind::ReadPosition {
+                index, counting, ..
+            } => ir::Selector::Index(*index, counting),
+            ir::ExprKind::ReadKey { key, .. } => ir::Selector::Key(*key),
+            _ => return Err(Diagnostic::bug("a read that isn't a read", name_span)),
+        };
+        let value_span = value.span;
+        let (value, ty) = self.expression(value)?;
+        if ty != item_type {
+            return Err(Diagnostic::mistake(
+                format!(
+                    "this item is {}, so it can't become {}",
+                    item_type.described(),
+                    ty.described()
+                ),
+                value_span,
+            )
+            .because("a table keeps the types it was made with"));
+        }
+        Ok(ir::Stmt::ChangeItem {
+            slot: variable.slot,
+            selector,
+            value,
+            name_span,
         })
     }
 

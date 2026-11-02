@@ -1,0 +1,5 @@
+stopped: d35_no_table.redstone:1:24, line 1 column 24
+ 1 | value at position 1 in scores is_now 5
+   |                        ^^^^^^
+ what: there's no `scores`
+ why:  a variable has to be made with `=` before its items can change

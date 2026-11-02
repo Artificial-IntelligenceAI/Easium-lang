@@ -1,7 +1,7 @@
 //! Tokens to the program as written. Arithmetic follows school maths, with `()` to group (D17); where the order of
 //! two words is still open, the parser asks for parentheses instead of picking one (rule 2).
 
-use crate::ast::{BinaryOp, Branch, Counting, Expr, ExprKind, Program, Stmt};
+use crate::ast::{BinaryOp, Branch, Counting, Expr, ExprKind, Program, Selector, Stmt};
 use crate::diagnostic::{Diagnostic, Span};
 use crate::lexer::{Keyword, Token, TokenKind};
 
@@ -170,11 +170,7 @@ impl Parser<'_> {
                 ExprKind::ReadPosition { .. } | ExprKind::ReadKey { .. }
             )
         {
-            return Err(Diagnostic::not_decided(
-                "changing an item in a table",
-                Some("D34"),
-                expression.span,
-            ));
+            return self.change_item(expression);
         }
         let diagnostic = Diagnostic::mistake(
             "this line works something out but does nothing with it",
@@ -182,6 +178,39 @@ impl Parser<'_> {
         );
         Err(diagnostic
             .because("a line shows something, makes or changes a variable, or starts a block"))
+    }
+
+    // D35: `value at position 1 in scores is_now 95`.
+    fn change_item(&mut self, target: Expr) -> Result<Stmt, Diagnostic> {
+        let (table, selector) = match target.kind {
+            ExprKind::ReadPosition {
+                table,
+                index,
+                counting,
+            } => (table, Selector::Index(*index, counting)),
+            ExprKind::ReadKey { table, key } => (table, Selector::Key(*key)),
+            _ => {
+                return Err(Diagnostic::bug(
+                    "a change of something that isn't an item",
+                    target.span,
+                ));
+            }
+        };
+        let ExprKind::Name(name) = table.kind else {
+            return Err(Diagnostic::not_decided(
+                "changing an item in a table inside a table",
+                Some("D35"),
+                table.span,
+            ));
+        };
+        self.advance();
+        let value = self.assigned_value()?;
+        Ok(Stmt::ChangeItem {
+            name,
+            name_span: table.span,
+            selector,
+            value,
+        })
     }
 
     fn expect_line_end(&mut self) -> Result<(), Diagnostic> {

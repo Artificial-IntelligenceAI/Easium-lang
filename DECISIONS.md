@@ -426,3 +426,17 @@ show value of name in ages             # a key held in a variable
 Open: changing an item (`value at position 1 in scores is_now 95`); whether `value`, `at`, `position`, `offset`,
 `of` and `in` become reserved words; reading with a key of a different number type (an int key in a table keyed by
 rationals).
+
+## D35 — Changing an item: `is_now` (2026-11-02)
+
+Owner: "yes" (to redstone design claude's proposal, reusing D14's `is_now`).
+
+```
+value at position 1 in scores is_now 95
+value of "Ada" in ages is_now 37
+```
+
+The new value has the type of the table's values (D4, D32).
+
+Open: whether another variable holding the same table sees the change (`b = a`, then changing `b`); adding a key
+this way (`value of "Cy" in ages is_now 7` when `"Cy"` isn't there); changing an item in a table inside a table.

@@ -1,0 +1,4 @@
+ages = table:
+"Ada": 36
+end_of table
+value of "Cy" in ages is_now 7

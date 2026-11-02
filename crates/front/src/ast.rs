@@ -41,6 +41,17 @@ pub enum Stmt {
         /// Shown only when this is true.
         condition: Option<Expr>,
     },
+    /// `value at position 1 in scores is_now 95`: changes an item in a table held by a variable (D35).
+    ChangeItem {
+        /// The variable holding the table.
+        name: String,
+        /// Where the variable's name is.
+        name_span: Span,
+        /// Which item.
+        selector: Selector,
+        /// Its new value.
+        value: Expr,
+    },
     /// A block `if`, closed by `end_of if` (D22, D24, D25).
     If {
         /// The `if` and each `else_if`, in order.
@@ -116,6 +127,15 @@ pub enum ExprKind {
         /// The key.
         key: Box<Expr>,
     },
+}
+
+/// Which item of a table (D34, D35).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Selector {
+    /// A position or offset in an in-order table.
+    Index(Expr, Counting),
+    /// A key in a keyed table.
+    Key(Expr),
 }
 
 /// How an index into an in-order table counts (D34).
