@@ -71,34 +71,9 @@ impl Checker {
             ast::Stmt::Show {
                 value,
                 whether,
+                count,
                 condition,
-            } => {
-                let value_span = value.span;
-                let (value, ty) = self.expression(value)?;
-                // D32: how a table is shown is still open.
-                if ty.is_table() {
-                    return Err(Diagnostic::not_decided(
-                        "showing a table",
-                        Some("D32"),
-                        value_span,
-                    ));
-                }
-                // D28
-                if *whether && ty != Type::Boolean {
-                    return Err(Diagnostic::mistake(
-                        format!(
-                            "`whether` needs a comparison, but this is {}",
-                            ty.described()
-                        ),
-                        value_span,
-                    ));
-                }
-                let condition = condition
-                    .as_ref()
-                    .map(|condition| self.condition(condition))
-                    .transpose()?;
-                Ok(ir::Stmt::Show { value, condition })
-            }
+            } => self.show(value, *whether, *count, condition.as_ref()),
             ast::Stmt::ChangeItem {
                 name,
                 name_span,
@@ -155,6 +130,43 @@ impl Checker {
                 })
             }
         }
+    }
+
+    fn show(
+        &mut self,
+        value: &ast::Expr,
+        whether: bool,
+        count: i64,
+        condition: Option<&ast::Expr>,
+    ) -> Result<ir::Stmt, Diagnostic> {
+        let value_span = value.span;
+        let (value, ty) = self.expression(value)?;
+        // D32: how a table is shown is still open.
+        if ty.is_table() {
+            return Err(Diagnostic::not_decided(
+                "showing a table",
+                Some("D32"),
+                value_span,
+            ));
+        }
+        // D28
+        if whether && ty != Type::Boolean {
+            return Err(Diagnostic::mistake(
+                format!(
+                    "`whether` needs a comparison, but this is {}",
+                    ty.described()
+                ),
+                value_span,
+            ));
+        }
+        let condition = condition
+            .map(|condition| self.condition(condition))
+            .transpose()?;
+        Ok(ir::Stmt::Show {
+            value,
+            count,
+            condition,
+        })
     }
 
     // D12, D15

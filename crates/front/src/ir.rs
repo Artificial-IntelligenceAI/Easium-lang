@@ -86,6 +86,8 @@ pub enum Stmt {
     Show {
         /// What to show.
         value: Expr,
+        /// How many times (D40).
+        count: i64,
         /// Shown only when this is true.
         condition: Option<Expr>,
     },

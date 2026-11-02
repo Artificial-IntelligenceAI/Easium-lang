@@ -1,0 +1,5 @@
+not decided yet: d40_count_elsewhere.redstone:1:10, line 1 column 10
+ 1 | age = 18 3x
+   |          ^^
+ what: a count like `50x` anywhere but right after `show`'s value
+ why:  this part of Redstone's design is still open (D40)

@@ -1,0 +1,5 @@
+not decided yet: d40_count_on_items.redstone:2:38, line 2 column 38
+ 2 | show items in scores until last_item 2x
+   |                                      ^^
+ what: a count like `50x` anywhere but right after `show`'s value
+ why:  this part of Redstone's design is still open (D40)

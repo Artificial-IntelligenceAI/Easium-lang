@@ -1,0 +1,7 @@
+show "Hello, World!" 3x
+show 7 times 6 2x
+loud = false
+show "Hi" 5x if loud
+show "Bye" 0x
+show whether 1 is 1 2x
+show "done"

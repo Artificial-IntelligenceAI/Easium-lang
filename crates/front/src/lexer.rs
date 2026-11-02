@@ -118,6 +118,8 @@ pub enum TokenKind {
     Int(i64),
     /// A decimal, such as `0.1`, which is a rational.
     Rational(Rational),
+    /// A count, such as `50x` (D40).
+    Count(i64),
     /// Text in quotes, without the quotes.
     Text(String),
     /// `=`
@@ -256,6 +258,25 @@ impl Lexer<'_> {
             decimal = true;
         }
         let end = self.offset();
+        // D40: `50x`, a whole number with `x` right after it, is a count.
+        let ends_after_x = !self
+            .peek_at(1)
+            .is_some_and(|(_, character)| character.is_ascii_alphanumeric() || character == '_');
+        if self.peek().is_some_and(|(_, character)| character == 'x') && ends_after_x {
+            self.position += 1;
+            let span = Span::new(start, end + 1);
+            if decimal {
+                return Err(Diagnostic::mistake("a count is a whole number", span));
+            }
+            let count = self.source[start..end].parse().map_err(|_| {
+                Diagnostic::not_decided("an int too big for 64 bits", Some("D7"), span)
+            })?;
+            self.tokens.push(Token {
+                kind: TokenKind::Count(count),
+                span,
+            });
+            return Ok(());
+        }
         if self
             .peek()
             .is_some_and(|(_, character)| character.is_ascii_alphabetic() || character == '_')

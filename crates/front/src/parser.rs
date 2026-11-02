@@ -118,6 +118,13 @@ impl Parser<'_> {
                     .because("a comparison after `show` would read as a claim, not a question"),
             );
         }
+        // D40
+        let count = if let TokenKind::Count(count) = self.peek().kind {
+            self.advance();
+            count
+        } else {
+            1
+        };
         let condition = if self.peek_keyword() == Some(Keyword::If) {
             self.advance();
             Some(self.expression()?)
@@ -127,6 +134,7 @@ impl Parser<'_> {
         Ok(Stmt::Show {
             value,
             whether,
+            count,
             condition,
         })
     }
@@ -385,6 +393,11 @@ impl Parser<'_> {
                 token.span,
             )),
             TokenKind::Name(word) => Err(self.stray_word(word, token.span)),
+            TokenKind::Count(_) => Err(Diagnostic::not_decided(
+                "a count like `50x` anywhere but right after `show`'s value",
+                Some("D40"),
+                token.span,
+            )),
             TokenKind::Comma => Err(Diagnostic::not_decided(
                 "a comma anywhere but in a table right after `=` or `is_now`",
                 Some("D33"),
@@ -964,6 +977,7 @@ fn describe(kind: &TokenKind) -> String {
         TokenKind::Name(name) => format!("`{name}`"),
         TokenKind::Keyword(keyword) => format!("`{}`", keyword.as_str()),
         TokenKind::Int(_) | TokenKind::Rational(_) => "a number".to_owned(),
+        TokenKind::Count(count) => format!("`{count}x`"),
         TokenKind::Text(_) => "text".to_owned(),
         TokenKind::Equals => "`=`".to_owned(),
         TokenKind::Colon => "`:`".to_owned(),

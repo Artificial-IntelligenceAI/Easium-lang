@@ -53,13 +53,22 @@ impl Machine<'_> {
                 *target = result;
                 Ok(())
             }
-            Stmt::Show { value, condition } => {
+            Stmt::Show {
+                value,
+                count,
+                condition,
+            } => {
                 if let Some(condition) = condition
                     && !self.boolean(condition)?
                 {
                     return Ok(());
                 }
-                self.show(value)
+                // D40: the value is worked out once and shown `count` times.
+                let shown = self.evaluate(value)?;
+                for _ in 0..*count {
+                    self.write_shown(&shown, value.span)?;
+                }
+                Ok(())
             }
             Stmt::ChangeItem {
                 slot,
@@ -167,11 +176,6 @@ impl Machine<'_> {
             }
             _ => Err(type_bug(name_span)),
         }
-    }
-
-    fn show(&mut self, value: &Expr) -> Result<(), Diagnostic> {
-        let shown = self.evaluate(value)?;
-        self.write_shown(&shown, value.span)
     }
 
     fn write_shown(&mut self, value: &Value, span: Span) -> Result<(), Diagnostic> {

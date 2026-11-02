@@ -526,3 +526,19 @@ end_of for
 Open: leaving a loop early; a count variable for `repeat … times`; naming the item for nested `for` loops (an inner
 `current_item` hides the outer); repeating a negative number of times; a `for` whose stop is never reached; a
 trailing `if` on lines other than `show` (D20).
+
+## D40 — `show … 50x` (2026-11-02)
+
+Owner:
+
+```
+show "Hello, World!" 50x
+```
+
+"means print that 50 times."
+
+A whole number written with `x` right after it (`50x`, one thing by D5), after `show`'s value, shows the value that
+many times, one per line. A trailing `if` comes after it: `show "Hi" 3x if loud`.
+
+Open: a count held in a variable; `x` counts after anything but `show`'s value (other statements, `show items in`);
+whether the value is worked out once or once per line (it matters only for `ask`).

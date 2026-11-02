@@ -38,6 +38,8 @@ pub enum Stmt {
         value: Expr,
         /// Whether it was written `show whether …` (D28).
         whether: bool,
+        /// How many times, from `50x` (D40); once when not written.
+        count: i64,
         /// Shown only when this is true.
         condition: Option<Expr>,
     },
