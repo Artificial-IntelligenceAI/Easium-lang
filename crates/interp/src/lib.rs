@@ -553,6 +553,10 @@ impl Machine<'_> {
             return Err(type_bug(span));
         };
         match summary {
+            // D58
+            Summary::Length => i64::try_from(values.len())
+                .map(Value::Int)
+                .map_err(|_| type_bug(span)),
             Summary::Sum => sum(values, span),
             Summary::Smallest | Summary::Largest => {
                 let mut best = values.first().cloned().ok_or_else(|| type_bug(span))?;

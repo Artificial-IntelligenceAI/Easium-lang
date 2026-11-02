@@ -1,0 +1,4 @@
+stopped: d58_length_not_table.easium:2:16, line 2 column 16
+ 2 | show length of n
+   |                ^
+ what: `length of` needs a table, but this is an int

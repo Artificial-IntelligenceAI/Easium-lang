@@ -1,0 +1,14 @@
+scores = 90, 65, 70, 65
+show length of scores
+show items in scores until position (length of scores)
+names = "Ada", "Bbn", "Cy"
+show length of names
+show whether length of names greater_than 2
+total = 0
+repeat length of scores times:
+    total becomes total plus value at position current_round in scores
+end_of repeat
+show total
+show whether average value in scores is (sum of scores divided_by length of scores)
+length = 7
+show length

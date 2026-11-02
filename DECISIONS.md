@@ -763,3 +763,20 @@ show average value in scores      # 72.5
 - By D5, `smallest value in` is three things, as `value at position` is: `smallest`, `largest` and `average` swap.
 
 Open: text (ordering text is open, D18); keyed tables; `length of`, the last of the family proposed with D56.
+
+## D58 — `length of` (2026-11-03)
+
+Owner: "yes" (to easium design claude's proposal: `length of scores`, not `length value in scores`, since a length
+isn't a value picked from the items).
+
+```
+scores = 90, 65, 70, 65
+show length of scores                                   # 4
+show items in scores until position (length of scores)  # every item
+```
+
+`length of` gives how many items an in-order table has, as an int, whatever the items are. It binds like a single
+value, as `sum of` does (D56).
+
+Open: keyed tables (how many keys); text (how long it is, and in what: characters as people see them, or something
+else).

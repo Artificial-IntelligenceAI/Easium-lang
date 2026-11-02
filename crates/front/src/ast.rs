@@ -236,6 +236,8 @@ pub enum Summary {
     Largest,
     /// `average value in`
     Average,
+    /// `length of` (D58)
+    Length,
 }
 
 impl Summary {
@@ -247,6 +249,7 @@ impl Summary {
             Summary::Smallest => "smallest value in",
             Summary::Largest => "largest value in",
             Summary::Average => "average value in",
+            Summary::Length => "length of",
         }
     }
 }

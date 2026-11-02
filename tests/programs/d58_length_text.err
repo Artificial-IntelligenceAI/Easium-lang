@@ -1,0 +1,5 @@
+not decided yet: d58_length_text.easium:1:16, line 1 column 16
+ 1 | show length of "Ada"
+   |                ^^^^^
+ what: the length of text
+ why:  this part of Easium's design is still open (D58)

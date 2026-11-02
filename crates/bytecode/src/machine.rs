@@ -682,6 +682,9 @@ fn item_bug() -> Diagnostic {
 /// A sum, smallest, largest or average of an in-order table of numbers (D56, D57), with the reference's errors.
 fn summarize(summary: Summary, values: &[Value], at: Span) -> Result<Value, Diagnostic> {
     match summary {
+        Summary::Length => i64::try_from(values.len())
+            .map(Value::Int)
+            .map_err(|_| type_bug(at)),
         Summary::Sum => add_up(values, at),
         Summary::Smallest | Summary::Largest => {
             let wanted = if summary == Summary::Smallest {

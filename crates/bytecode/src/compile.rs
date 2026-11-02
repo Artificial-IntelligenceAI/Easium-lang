@@ -2,7 +2,8 @@
 //! interpreter, so the output and the errors match it exactly (rule 10).
 
 use easium_front::ir::{
-    Arithmetic, Comparison, Expr, ExprKind, FormatPart, Program, Selector, Stmt, Stop, Type,
+    Arithmetic, Comparison, Expr, ExprKind, FormatPart, Program, Selector, Stmt, Stop, Summary,
+    Type,
 };
 use easium_front::{Diagnostic, Span};
 use easium_runtime::Value;
@@ -1005,6 +1006,18 @@ impl Compiler {
                     at: key.span,
                 });
                 Ok(dst)
+            }
+            // D58: a length is tier 0's `Length`, which compiled loops read from their table views.
+            ExprKind::Summary(Summary::Length, table) => {
+                let table_reg = self.object(table)?;
+                let Reg::Int(dst) = self.destination(into, ty) else {
+                    return Err(Diagnostic::bug("a length in a non-int register", at));
+                };
+                self.emit(Op::Length {
+                    dst,
+                    table: table_reg,
+                });
+                Ok(Reg::Int(dst))
             }
             ExprKind::Summary(summary, table) => {
                 let table_reg = self.object(table)?;

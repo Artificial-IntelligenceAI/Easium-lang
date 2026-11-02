@@ -807,6 +807,31 @@ impl Checker {
     ) -> Result<(ir::ExprKind, Type), Diagnostic> {
         let words = summary.words();
         let (checked, ty) = self.expression(table)?;
+        // D58: a length counts items of any type, as an int.
+        if summary == Summary::Length {
+            return match ty {
+                Type::InOrder(_) => {
+                    Ok((ir::ExprKind::Summary(summary, Box::new(checked)), Type::Int))
+                }
+                Type::Keyed(..) => Err(Diagnostic::not_decided(
+                    "the length of a keyed table",
+                    Some("D58"),
+                    table.span,
+                )),
+                Type::Text => Err(Diagnostic::not_decided(
+                    "the length of text",
+                    Some("D58"),
+                    table.span,
+                )),
+                other => Err(Diagnostic::mistake(
+                    format!(
+                        "`length of` needs a table, but this is {}",
+                        other.described()
+                    ),
+                    table.span,
+                )),
+            };
+        }
         let element = match &ty {
             Type::InOrder(element) => (**element).clone(),
             Type::Keyed(..) => {

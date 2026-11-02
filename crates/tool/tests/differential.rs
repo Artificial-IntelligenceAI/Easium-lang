@@ -67,6 +67,7 @@ impl Generator {
                 "sum of t",
                 "smallest value in t",
                 "largest value in t",
+                "length of t",
             ];
             if scope.in_repeat {
                 leaves.push("current_round");

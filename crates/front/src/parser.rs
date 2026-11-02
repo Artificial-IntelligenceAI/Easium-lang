@@ -906,17 +906,21 @@ impl Parser<'_> {
             TokenKind::Text(text) => ExprKind::Text(text),
             TokenKind::Keyword(Keyword::True) => ExprKind::Boolean(true),
             TokenKind::Keyword(Keyword::False) => ExprKind::Boolean(false),
-            // D56
+            // D56, D58
             TokenKind::Name(name)
-                if name == "sum"
-                    && matches!(&self.peek_at(1).kind, TokenKind::Name(of) if of == "of") =>
+                if matches!(name.as_str(), "sum" | "length") && self.next_words_are(&["of"]) =>
             {
+                let summary = if name == "sum" {
+                    Summary::Sum
+                } else {
+                    Summary::Length
+                };
                 self.advance();
                 self.advance();
                 let table = self.primary()?;
                 return Ok(Expr {
                     span: token.span.to(table.span),
-                    kind: ExprKind::Summary(Summary::Sum, Box::new(table)),
+                    kind: ExprKind::Summary(summary, Box::new(table)),
                 });
             }
             // D57
