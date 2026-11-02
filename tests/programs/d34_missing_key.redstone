@@ -1,0 +1,4 @@
+ages = table:
+"Ada": 36
+end_of table
+show value of "Cy" in ages

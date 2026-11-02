@@ -5,6 +5,7 @@ use std::rc::Rc;
 
 use redstone_runtime::Rational;
 
+pub use crate::ast::Counting;
 use crate::diagnostic::Span;
 
 /// A checked program.
@@ -141,6 +142,22 @@ pub enum ExprKind {
     InOrder(Vec<Expr>),
     /// Makes a keyed table (D33).
     Keyed(Vec<(Expr, Expr)>),
+    /// Reads an in-order table by position or offset (D34).
+    ReadPosition {
+        /// The table.
+        table: Box<Expr>,
+        /// The position or offset, an int.
+        index: Box<Expr>,
+        /// How the index counts.
+        counting: Counting,
+    },
+    /// Reads a keyed table by key (D34).
+    ReadKey {
+        /// The table.
+        table: Box<Expr>,
+        /// The key.
+        key: Box<Expr>,
+    },
 }
 
 /// An arithmetic word (D16).

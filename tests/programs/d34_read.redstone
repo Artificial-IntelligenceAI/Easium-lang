@@ -1,0 +1,21 @@
+scores = 90, 65, 70
+ages = table:
+    "Ada": 36
+    "Bbn": 41
+end_of table
+show value at position 1 in scores
+show value at offset 0 in scores
+show value at position 3 in scores
+show value of "Ada" in ages
+name = ask "Whose age? "
+show value of name in ages
+show value at position 2 in scores plus 5
+show "Teen" if value of "Ada" in ages less_than 20
+show "Adult" if value of "Ada" in ages at_least 18
+row_1 = 1, 2
+row_2 = 3, 4
+grid = row_1, row_2
+show value at position 2 in (value at position 1 in grid)
+show value at position 1 in value at position 2 in grid
+value = 5
+show value

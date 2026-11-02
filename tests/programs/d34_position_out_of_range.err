@@ -1,0 +1,5 @@
+stopped: d34_position_out_of_range.redstone:2:24, line 2 column 24
+ 2 | show value at position 4 in scores
+   |                        ^
+ what: there's no position 4 in this table
+ why:  this table has positions 1 to 3

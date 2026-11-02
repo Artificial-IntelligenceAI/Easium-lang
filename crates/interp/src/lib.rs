@@ -5,7 +5,7 @@ use std::cmp::Ordering;
 use std::io::{BufRead, Write};
 use std::rc::Rc;
 
-use redstone_front::ir::{Arithmetic, Comparison, Expr, ExprKind, Program, Stmt};
+use redstone_front::ir::{Arithmetic, Comparison, Counting, Expr, ExprKind, Program, Stmt};
 use redstone_front::{Diagnostic, Span};
 use redstone_runtime::{Rational, RationalError, Table, Value};
 
@@ -154,6 +154,12 @@ impl Machine<'_> {
                 Ok(Value::Table(Rc::new(Table::InOrder(values))))
             }
             ExprKind::Keyed(entries) => self.keyed(entries),
+            ExprKind::ReadPosition {
+                table,
+                index,
+                counting,
+            } => self.read_position(table, index, *counting, span),
+            ExprKind::ReadKey { table, key } => self.read_key(table, key, span),
         }
     }
 
@@ -172,6 +178,61 @@ impl Machine<'_> {
             pairs.push((key_value, value));
         }
         Ok(Value::Table(Rc::new(Table::Keyed(pairs))))
+    }
+
+    // D32, D34: reading what isn't there is an error.
+    fn read_position(
+        &mut self,
+        table: &Expr,
+        index: &Expr,
+        counting: Counting,
+        span: Span,
+    ) -> Result<Value, Diagnostic> {
+        let (Value::Table(contents), Value::Int(index_value)) =
+            (self.evaluate(table)?, self.evaluate(index)?)
+        else {
+            return Err(type_bug(span));
+        };
+        let Table::InOrder(values) = &*contents else {
+            return Err(type_bug(span));
+        };
+        let (word, first) = match counting {
+            Counting::Position => ("position", 1),
+            Counting::Offset => ("offset", 0),
+        };
+        let found = index_value
+            .checked_sub(first)
+            .and_then(|zero_based| usize::try_from(zero_based).ok())
+            .and_then(|zero_based| values.get(zero_based));
+        if let Some(value) = found {
+            return Ok(value.clone());
+        }
+        let last = i64::try_from(values.len()).unwrap_or(i64::MAX) - 1 + first;
+        Err(Diagnostic::mistake(
+            format!("there's no {word} {index_value} in this table"),
+            index.span,
+        )
+        .because(format!("this table has {word}s {first} to {last}")))
+    }
+
+    fn read_key(&mut self, table: &Expr, key: &Expr, span: Span) -> Result<Value, Diagnostic> {
+        let Value::Table(contents) = self.evaluate(table)? else {
+            return Err(type_bug(span));
+        };
+        let Table::Keyed(pairs) = &*contents else {
+            return Err(type_bug(span));
+        };
+        let key_value = self.evaluate(key)?;
+        pairs
+            .iter()
+            .find(|(existing, _)| *existing == key_value)
+            .map(|(_, value)| value.clone())
+            .ok_or_else(|| {
+                Diagnostic::mistake(
+                    format!("there's no key {} in this table", described_key(&key_value)),
+                    key.span,
+                )
+            })
     }
 
     // D26: `ask` shows its prompt and waits for a line; what comes back is text.
@@ -283,6 +344,16 @@ fn rational_error(error: RationalError, span: Span) -> Diagnostic {
 
 fn division_by_zero(span: Span) -> Diagnostic {
     Diagnostic::not_decided("what dividing by zero does", Some("D16"), span)
+}
+
+fn described_key(key: &Value) -> String {
+    match key {
+        Value::Text(text) => format!("\"{text}\""),
+        Value::Rational(rational) => rational
+            .to_decimal()
+            .unwrap_or_else(|| rational.to_string()),
+        other => other.show().unwrap_or_default(),
+    }
 }
 
 fn type_bug(span: Span) -> Diagnostic {

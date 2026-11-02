@@ -249,6 +249,12 @@ impl Checker {
             } => self.binary(*op, *op_span, left, right, span)?,
             ExprKind::InOrder(items) => self.in_order(items)?,
             ExprKind::Keyed(entries) => self.keyed(entries)?,
+            ExprKind::ReadPosition {
+                table,
+                index,
+                counting,
+            } => self.read_position(table, index, *counting)?,
+            ExprKind::ReadKey { table, key } => self.read_key(table, key)?,
         };
         Ok((ir::Expr { kind, span }, ty))
     }
@@ -301,6 +307,91 @@ impl Checker {
             )),
             _ => Err(Diagnostic::bug("a table with no entries", Span::new(0, 0))),
         }
+    }
+
+    // D34
+    fn read_position(
+        &mut self,
+        table: &ast::Expr,
+        index: &ast::Expr,
+        counting: ast::Counting,
+    ) -> Result<(ir::ExprKind, Type), Diagnostic> {
+        let word = match counting {
+            ast::Counting::Position => "position",
+            ast::Counting::Offset => "offset",
+        };
+        let (checked_table, table_type) = self.expression(table)?;
+        let Type::InOrder(value_type) = &table_type else {
+            return Err(Diagnostic::mistake(
+                format!(
+                    "`value at {word}` reads an in-order table, but this is {}",
+                    table_type.described()
+                ),
+                table.span,
+            )
+            .because("a keyed table is read by key, with `value of`"));
+        };
+        let (checked_index, index_type) = self.expression(index)?;
+        if index_type != Type::Int {
+            return Err(Diagnostic::mistake(
+                format!("a {word} is an int, but this is {}", index_type.described()),
+                index.span,
+            ));
+        }
+        Ok((
+            ir::ExprKind::ReadPosition {
+                table: Box::new(checked_table),
+                index: Box::new(checked_index),
+                counting,
+            },
+            (**value_type).clone(),
+        ))
+    }
+
+    fn read_key(
+        &mut self,
+        table: &ast::Expr,
+        key: &ast::Expr,
+    ) -> Result<(ir::ExprKind, Type), Diagnostic> {
+        let (checked_table, table_type) = self.expression(table)?;
+        let Type::Keyed(key_type, value_type) = &table_type else {
+            return Err(Diagnostic::mistake(
+                format!(
+                    "`value of` reads a keyed table, but this is {}",
+                    table_type.described()
+                ),
+                table.span,
+            )
+            .because("an in-order table is read with `value at position` or `value at offset`"));
+        };
+        let (checked_key, this_key_type) = self.expression(key)?;
+        if this_key_type != **key_type {
+            if matches!(
+                (&**key_type, &this_key_type),
+                (Type::Int, Type::Rational) | (Type::Rational, Type::Int)
+            ) {
+                return Err(Diagnostic::not_decided(
+                    "reading with a key of a different number type",
+                    Some("D34"),
+                    key.span,
+                ));
+            }
+            return Err(Diagnostic::mistake(
+                format!(
+                    "this table's keys are {}, but this is {}",
+                    key_type.plural(),
+                    this_key_type.described()
+                ),
+                key.span,
+            ));
+        }
+        Ok((
+            ir::ExprKind::ReadKey {
+                table: Box::new(checked_table),
+                key: Box::new(checked_key),
+            },
+            (**value_type).clone(),
+        ))
     }
 
     fn boolean_operand(&mut self, word: &str, operand: &ast::Expr) -> Result<ir::Expr, Diagnostic> {

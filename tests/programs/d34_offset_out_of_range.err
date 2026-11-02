@@ -1,0 +1,5 @@
+stopped: d34_offset_out_of_range.redstone:2:22, line 2 column 22
+ 2 | show value at offset 3 in scores
+   |                      ^
+ what: there's no offset 3 in this table
+ why:  this table has offsets 0 to 2

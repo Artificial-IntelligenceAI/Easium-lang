@@ -1,0 +1,4 @@
+ages = table:
+"Ada": 36
+end_of table
+show value of 1 in ages

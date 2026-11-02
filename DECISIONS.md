@@ -403,3 +403,26 @@ end_of table
 Open: a table with one item (`90` alone is an int; a trailing comma, `90,`, is easy to miss); an in-order table too
 long for one line; where else commas may appear (they now make tables, so later function calls can't use bare
 commas for arguments); empty tables.
+
+## D34 — Reading from a table: `value at position`, `value at offset`, `value of` (2026-11-02)
+
+Shaped together: redstone design claude offered `at`, brackets, or `item 1 of scores`; owner: "`show value of "Ada"
+in ages`?", "`at position` & `at offset`, so it wouldn't be confusing?", "For `"Ada"`, might wanna use `of` instead
+of `at`", then "I pick 3" (the `value … in` form).
+
+```
+show value at position 1 in scores     # counting from 1: the first item
+show value at offset 0 in scores       # counting from 0: also the first item
+show value of "Ada" in ages            # a key
+name = ask "Whose age? "
+show value of name in ages             # a key held in a variable
+```
+
+- **An in-order table is read by position or by offset:** `at position` counts from 1, `at offset` from 0, so each
+  read says how it counts. `position` and `offset` swap, so `at position` is two things (D5).
+- **A keyed table is read by key, with `of`.**
+- Reading a position, offset or key that isn't there is an error (D32).
+
+Open: changing an item (`value at position 1 in scores is_now 95`); whether `value`, `at`, `position`, `offset`,
+`of` and `in` become reserved words; reading with a key of a different number type (an int key in a table keyed by
+rationals).

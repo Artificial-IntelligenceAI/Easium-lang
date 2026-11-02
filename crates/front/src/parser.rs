@@ -1,7 +1,7 @@
 //! Tokens to the program as written. Arithmetic follows school maths, with `()` to group (D17); where the order of
 //! two words is still open, the parser asks for parentheses instead of picking one (rule 2).
 
-use crate::ast::{BinaryOp, Branch, Expr, ExprKind, Program, Stmt};
+use crate::ast::{BinaryOp, Branch, Counting, Expr, ExprKind, Program, Stmt};
 use crate::diagnostic::{Diagnostic, Span};
 use crate::lexer::{Keyword, Token, TokenKind};
 
@@ -164,6 +164,18 @@ impl Parser<'_> {
 
     fn expression_statement(&mut self) -> Result<Stmt, Diagnostic> {
         let expression = self.expression()?;
+        if self.peek().kind == TokenKind::Keyword(Keyword::IsNow)
+            && matches!(
+                expression.kind,
+                ExprKind::ReadPosition { .. } | ExprKind::ReadKey { .. }
+            )
+        {
+            return Err(Diagnostic::not_decided(
+                "changing an item in a table",
+                Some("D34"),
+                expression.span,
+            ));
+        }
         let diagnostic = Diagnostic::mistake(
             "this line works something out but does nothing with it",
             expression.span,
@@ -591,6 +603,9 @@ impl Parser<'_> {
             TokenKind::Text(text) => ExprKind::Text(text),
             TokenKind::Keyword(Keyword::True) => ExprKind::Boolean(true),
             TokenKind::Keyword(Keyword::False) => ExprKind::Boolean(false),
+            TokenKind::Name(name) if name == "value" && self.read_follows() => {
+                return self.read(token.span);
+            }
             TokenKind::Name(name) => ExprKind::Name(name),
             TokenKind::OpenParen => return self.parenthesized(token.span),
             // D26
@@ -635,6 +650,58 @@ impl Parser<'_> {
             kind,
             span: token.span,
         })
+    }
+
+    fn read_follows(&self) -> bool {
+        let next_is = |offset: usize, word: &str| matches!(&self.peek_at(offset).kind, TokenKind::Name(name) if name == word);
+        next_is(1, "of") || (next_is(1, "at") && (next_is(2, "position") || next_is(2, "offset")))
+    }
+
+    // D34: `value at position 1 in scores`, `value at offset 0 in scores`, `value of "Ada" in ages`.
+    fn read(&mut self, value_span: Span) -> Result<Expr, Diagnostic> {
+        self.advance();
+        let counting = if self.next_word_is("of") {
+            self.advance();
+            None
+        } else {
+            self.advance();
+            let counting = if self.next_word_is("position") {
+                Counting::Position
+            } else {
+                Counting::Offset
+            };
+            self.advance();
+            Some(counting)
+        };
+        let (index, _) = self.additive()?;
+        let in_token = self.peek().clone();
+        if !self.next_word_is("in") {
+            return Err(Diagnostic::mistake(
+                format!(
+                    "expected `in` and the table, but found {}",
+                    describe(&in_token.kind)
+                ),
+                in_token.span,
+            )
+            .because("a read names its table after `in`"));
+        }
+        self.advance();
+        let table = self.primary()?;
+        let span = value_span.to(table.span);
+        let (table, index) = (Box::new(table), Box::new(index));
+        let kind = match counting {
+            Some(counting) => ExprKind::ReadPosition {
+                table,
+                index,
+                counting,
+            },
+            None => ExprKind::ReadKey { table, key: index },
+        };
+        Ok(Expr { kind, span })
+    }
+
+    fn next_word_is(&self, word: &str) -> bool {
+        matches!(&self.peek().kind, TokenKind::Name(name) if name == word)
     }
 
     // D17

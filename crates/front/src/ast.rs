@@ -100,6 +100,31 @@ pub enum ExprKind {
     InOrder(Vec<Expr>),
     /// A keyed table: a `table:` block of `key: value` lines (D33).
     Keyed(Vec<(Expr, Expr)>),
+    /// `value at position 1 in scores` or `value at offset 0 in scores` (D34).
+    ReadPosition {
+        /// The table.
+        table: Box<Expr>,
+        /// The position or offset.
+        index: Box<Expr>,
+        /// How the index counts.
+        counting: Counting,
+    },
+    /// `value of "Ada" in ages` (D34).
+    ReadKey {
+        /// The table.
+        table: Box<Expr>,
+        /// The key.
+        key: Box<Expr>,
+    },
+}
+
+/// How an index into an in-order table counts (D34).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Counting {
+    /// `at position`: from 1.
+    Position,
+    /// `at offset`: from 0.
+    Offset,
 }
 
 /// A word between two operands.

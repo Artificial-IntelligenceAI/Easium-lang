@@ -1,0 +1,5 @@
+stopped: d34_missing_in.redstone:2:26, line 2 column 26
+ 2 | show value at position 1 of scores
+   |                          ^^
+ what: expected `in` and the table, but found `of`
+ why:  a read names its table after `in`
