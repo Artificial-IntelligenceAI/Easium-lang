@@ -65,12 +65,24 @@ fn every_program_behaves_as_expected() {
     let mut failures = Vec::new();
     let programs = programs();
     assert!(!programs.is_empty(), "no test programs found");
-    for program in &programs {
+    // Rule 10: each program runs in the bytecode interpreter (tier 0) and in the reference interpreter, and both
+    // must match the expected files.
+    let interpreters: &[&str] = if bless {
+        &["reference"]
+    } else {
+        &["bytecode", "reference"]
+    };
+    for (program, interpreter) in programs.iter().flat_map(|program| {
+        interpreters
+            .iter()
+            .map(move |interpreter| (program, *interpreter))
+    }) {
         let name = program.file_name().unwrap().to_str().unwrap();
         let input = fs::read(program.with_extension("in")).unwrap_or_default();
         let mut child = Command::new(env!("CARGO_BIN_EXE_redstone"))
             .arg("run")
             .arg(name)
+            .env("REDSTONE_INTERPRETER", interpreter)
             .current_dir(program.parent().unwrap())
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
@@ -100,7 +112,7 @@ fn every_program_behaves_as_expected() {
         }
 
         let Ok(expected_out) = fs::read_to_string(&out_path) else {
-            failures.push(format!("{name}: no .out file"));
+            failures.push(format!("{name} ({interpreter}): no .out file"));
             continue;
         };
         let expected_err = fs::read_to_string(&err_path).ok();

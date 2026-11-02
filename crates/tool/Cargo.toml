@@ -14,3 +14,4 @@ path = "src/main.rs"
 [dependencies]
 redstone-front.workspace = true
 redstone-interp.workspace = true
+redstone-bytecode.workspace = true

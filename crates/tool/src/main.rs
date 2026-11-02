@@ -43,7 +43,13 @@ fn run(path: &str) -> ExitCode {
     let stdout = io::stdout();
     let mut input = stdin.lock();
     let mut output = stdout.lock();
-    let result = redstone_interp::run(&program, &mut input, &mut output);
+    // D52: the bytecode interpreter is tier 0; the reference interpreter is there to check it against.
+    let result = if std::env::var_os("REDSTONE_INTERPRETER").is_some_and(|name| name == "reference")
+    {
+        redstone_interp::run(&program, &mut input, &mut output)
+    } else {
+        redstone_bytecode::run(&program, &mut input, &mut output)
+    };
     let _ = output.flush();
     match result {
         Ok(()) => ExitCode::SUCCESS,

@@ -15,6 +15,8 @@ pub struct Program {
     pub statements: Vec<Stmt>,
     /// How many variable slots the program uses.
     pub slot_count: usize,
+    /// Each slot's type, by slot number.
+    pub slot_types: Vec<Type>,
 }
 
 /// The type of a value (D4, D7, D19, D32).
@@ -221,6 +223,8 @@ pub struct Expr {
     pub kind: ExprKind,
     /// Where it is.
     pub span: Span,
+    /// Its type.
+    pub ty: Type,
 }
 
 /// What a checked expression computes; each operation knows its operand types.

@@ -1,5 +1,5 @@
-//! The interpreter, Redstone's first tier (D3): runs a checked program directly. It is the reference the Cranelift
-//! tier is tested against (rule 10).
+//! The reference interpreter (D52): runs a checked program directly, kept simple and obviously correct. The bytecode
+//! interpreter and the Cranelift tier are tested against it (rule 10).
 
 use std::cmp::Ordering;
 use std::io::{BufRead, Write};

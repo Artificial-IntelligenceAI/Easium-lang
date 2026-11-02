@@ -3,6 +3,14 @@
 version = 4
 
 [[package]]
+name = "redstone-bytecode"
+version = "0.1.0"
+dependencies = [
+ "redstone-front",
+ "redstone-runtime",
+]
+
+[[package]]
 name = "redstone-front"
 version = "0.1.0"
 dependencies = [
@@ -26,6 +34,7 @@ version = "0.1.0"
 name = "redstone-tool"
 version = "0.1.0"
 dependencies = [
+ "redstone-bytecode",
  "redstone-front",
  "redstone-interp",
 ]

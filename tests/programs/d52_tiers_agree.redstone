@@ -1,0 +1,27 @@
+scores = 90, 65, 70, 65
+ages = table:
+    "Ada": 36
+    "Bbn": 41
+end_of table
+total = 0
+for items in scores until last_item:
+    total becomes total plus current_item
+end_of for
+average = total divided_by 4
+show_using_format "Total <total>, average <average>"
+value of "Ada" in ages becomes value of "Ada" in ages plus 1
+copy = ages
+value of "Bbn" in copy becomes 0
+show value of "Bbn" in ages
+name = ask "Name? "
+line = "Hi " <-- name <-- ", you are " <-- value of "Ada" in ages
+show line
+n = 0
+repeat until n at_least 5:
+    n becomes n plus 1
+    stop if n is 3
+end_of repeat
+show n
+show items in scores until_before current_item less_than 70
+show whether (0.1 plus 0.2) is 0.3 and not false
+show "x" 2x if total greater_than 100

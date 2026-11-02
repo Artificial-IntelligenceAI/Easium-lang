@@ -19,12 +19,13 @@ pub fn check(program: &ast::Program) -> Result<ir::Program, Diagnostic> {
         loop_depth: 0,
         in_show: false,
         ended: HashSet::new(),
-        slot_count: 0,
+        slot_types: Vec::new(),
     };
     let statements = checker.block(&program.statements)?;
     Ok(ir::Program {
         statements,
-        slot_count: checker.slot_count,
+        slot_count: checker.slot_types.len(),
+        slot_types: checker.slot_types,
     })
 }
 
@@ -42,7 +43,8 @@ struct Checker {
     in_show: bool,
     /// Names made inside blocks that have ended: whether they still exist is open.
     ended: HashSet<String>,
-    slot_count: usize,
+    /// Each slot's type, by slot number.
+    slot_types: Vec<Type>,
 }
 
 impl Checker {
@@ -308,8 +310,7 @@ impl Checker {
         if self.ended.contains(name) {
             return Err(made_in_ended_block(name, name_span));
         }
-        let slot = self.slot_count;
-        self.slot_count += 1;
+        let slot = self.new_slot(ty.clone());
         if let Some(scope) = self.scopes.last_mut() {
             scope.insert(name.to_owned(), Variable { slot, ty });
         }
@@ -489,9 +490,13 @@ impl Checker {
         }
     }
 
+    fn new_slot(&mut self, ty: Type) -> usize {
+        self.slot_types.push(ty);
+        self.slot_types.len() - 1
+    }
+
     fn push_current_item(&mut self, element: &Type) -> usize {
-        let slot = self.slot_count;
-        self.slot_count += 1;
+        let slot = self.new_slot(element.clone());
         let mut scope = HashMap::new();
         scope.insert(
             "current_item".to_owned(),
@@ -529,8 +534,7 @@ impl Checker {
 
     // D50, D51: `current_round` counts a `repeat`'s rounds from 1, in a scope of its own.
     fn push_current_round(&mut self) -> usize {
-        let slot = self.slot_count;
-        self.slot_count += 1;
+        let slot = self.new_slot(Type::Int);
         self.scopes.push(HashMap::from([(
             "current_round".to_owned(),
             Variable {
@@ -733,7 +737,14 @@ impl Checker {
             } => self.read_position(table, index, *counting)?,
             ExprKind::ReadKey { table, key } => self.read_key(table, key)?,
         };
-        Ok((ir::Expr { kind, span }, ty))
+        Ok((
+            ir::Expr {
+                kind,
+                span,
+                ty: ty.clone(),
+            },
+            ty,
+        ))
     }
 
     // D32, D33: every value in a table has the type of the first one.
@@ -1129,6 +1140,7 @@ fn same_type_in_table(
 fn to_rational(int: Box<ir::Expr>) -> ir::Expr {
     let span = int.span;
     ir::Expr {
+        ty: Type::Rational,
         kind: ir::ExprKind::IntToRational(int),
         span,
     }

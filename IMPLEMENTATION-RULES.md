@@ -30,10 +30,11 @@ Auto commit & push".
 
 9. **Tests are small Redstone programs**, one file each, with their expected output and any typed input for `ask`.
    Every implemented decision has at least one.
-10. **The interpreter is the reference.** The Cranelift tier (D3, D36) gives the same output as the interpreter on
-    every test program, with Redstone's own optimizations on and off.
+10. **The reference interpreter is the reference (D52).** The bytecode interpreter (tier 0) and the Cranelift tier
+    (D36) give the same output and the same errors as the reference interpreter on every test program, with
+    Redstone's own optimizations on and off. The reference stays simple: no optimizations in it.
 
 ## Layout
 
-11. **A Cargo workspace, one crate per part:** front end, interpreter, runtime, Redstone's optimizer, the Cranelift
-    tier, and the tool.
+11. **A Cargo workspace, one crate per part:** front end, runtime, the reference interpreter, the bytecode
+    interpreter, Redstone's optimizer, the Cranelift tier, and the tool.

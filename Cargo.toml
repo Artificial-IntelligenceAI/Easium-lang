@@ -8,6 +8,7 @@ edition = "2024"
 publish = false
 
 [workspace.dependencies]
+redstone-bytecode = { path = "crates/bytecode" }
 redstone-front = { path = "crates/front" }
 redstone-interp = { path = "crates/interp" }
 redstone-runtime = { path = "crates/runtime" }

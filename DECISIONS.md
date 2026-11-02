@@ -678,3 +678,17 @@ Open: `current_round` in `repeat until` and `repeat forever`.
 Owner: "yes" (to redstone design claude's question). `repeat until` and `repeat forever` have `current_round` too,
 counting from 1, as `repeat … times` does (D50). In `repeat until`, the test is checked before each round, so it
 sees `current_round` of the round about to run. Settles D50's open question.
+
+## D52 — A fast tier 0, and the simple interpreter as the reference (2026-11-02)
+
+Owner, after redstone design claude measured the tree-walking interpreter (10M int additions: 0.58 s, against
+Python's 0.33 s and Ruby's 0.19 s) and explained that it is both tier 0 and the reference: "Let's build a separate
+fast tier-0 interp first".
+
+- **Tier 0 is a separate, fast interpreter**: a bytecode interpreter. Code that runs often still goes to
+  Cranelift (D36).
+- **The simple tree-walking interpreter stays as the reference**, no longer a tier: kept simple and obviously
+  correct, it is what tier 0 and the Cranelift tier are checked against.
+
+Open: whether the reference should later become fully independent, like Radium's oracle (today it shares the front
+end with the tiers, so a checker bug would agree with itself).
