@@ -1,0 +1,5 @@
+not decided yet: d33_trailing_comma.redstone:1:12, line 1 column 12
+ 1 | scores = 90,
+   |            ^
+ what: a comma at the end of a table, as for a table with one item
+ why:  this part of Redstone's design is still open (D33)

@@ -1,0 +1,5 @@
+not decided yet: d32_compare_tables.redstone:3:14, line 3 column 14
+ 3 | show whether a is b
+   |              ^^^^^^
+ what: comparing tables
+ why:  this part of Redstone's design is still open (D32)

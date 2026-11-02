@@ -380,3 +380,26 @@ Redstone has tables: one name and one way of writing them, as in Lua, with Lua's
 Open: all syntax (the sketch was `scores = table 90, 85, 70` and `ages = table "Ada": 36, "Bob": 41`); the words
 for reading, changing, adding and removing; going through each item, which needs loops; whether a table can be
 empty when made, and what type it gets then.
+
+## D33 — How tables are written (2026-11-02)
+
+Owner, after redstone design claude offered a word with commas, brackets, or a `table:` block:
+
+```
+scores = 90, 65, 70
+ages = table:
+"Ada": 36
+"Bbn": 41
+end_of table
+```
+
+("Btw, there's no `table` in the one line ver"), then "no" to making the two forms symmetric.
+
+- **An in-order table is written on one line, its values joined by commas**, with no keyword: `scores = 90, 65, 70`.
+- **A keyed table is written as a block:** `table:`, then one `key: value` per line, closed by `end_of table`
+  (D25).
+- Not symmetric: no one-line keyed table, no block of in-order values.
+
+Open: a table with one item (`90` alone is an int; a trailing comma, `90,`, is easy to miss); an in-order table too
+long for one line; where else commas may appear (they now make tables, so later function calls can't use bare
+commas for arguments); empty tables.

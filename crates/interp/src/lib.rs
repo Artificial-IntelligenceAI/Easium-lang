@@ -7,7 +7,7 @@ use std::rc::Rc;
 
 use redstone_front::ir::{Arithmetic, Comparison, Expr, ExprKind, Program, Stmt};
 use redstone_front::{Diagnostic, Span};
-use redstone_runtime::{Rational, RationalError, Value};
+use redstone_runtime::{Rational, RationalError, Table, Value};
 
 /// Runs `program`, reading typed lines for `ask` from `input` and writing to `output`.
 ///
@@ -145,7 +145,33 @@ impl Machine<'_> {
             }
             ExprKind::Not(operand) => Ok(Value::Boolean(!self.boolean(operand)?)),
             ExprKind::Ask(prompt) => self.ask(prompt),
+            // D32, D33
+            ExprKind::InOrder(items) => {
+                let values = items
+                    .iter()
+                    .map(|item| self.evaluate(item))
+                    .collect::<Result<_, _>>()?;
+                Ok(Value::Table(Rc::new(Table::InOrder(values))))
+            }
+            ExprKind::Keyed(entries) => self.keyed(entries),
         }
+    }
+
+    fn keyed(&mut self, entries: &[(Expr, Expr)]) -> Result<Value, Diagnostic> {
+        let mut pairs: Vec<(Value, Value)> = Vec::with_capacity(entries.len());
+        for (key, value) in entries {
+            let key_value = self.evaluate(key)?;
+            if pairs.iter().any(|(existing, _)| *existing == key_value) {
+                return Err(Diagnostic::not_decided(
+                    "the same key twice in one table",
+                    Some("D32"),
+                    key.span,
+                ));
+            }
+            let value = self.evaluate(value)?;
+            pairs.push((key_value, value));
+        }
+        Ok(Value::Table(Rc::new(Table::Keyed(pairs))))
     }
 
     // D26: `ask` shows its prompt and waits for a line; what comes back is text.

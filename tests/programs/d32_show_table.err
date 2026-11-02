@@ -1,0 +1,5 @@
+not decided yet: d32_show_table.redstone:2:6, line 2 column 6
+ 2 | show scores
+   |      ^^^^^^
+ what: showing a table
+ why:  this part of Redstone's design is still open (D32)

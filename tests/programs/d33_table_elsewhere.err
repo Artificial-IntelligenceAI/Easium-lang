@@ -1,0 +1,5 @@
+not decided yet: d33_table_elsewhere.redstone:1:6, line 1 column 6
+ 1 | show table:
+   |      ^^^^^
+ what: a table anywhere but right after `=` or `is_now`
+ why:  this part of Redstone's design is still open (D33)

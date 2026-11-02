@@ -1,0 +1,5 @@
+stopped: d33_missing_colon.redstone:2:7, line 2 column 7
+ 2 | "Ada" 36
+   |       ^^
+ what: expected `:` after the key, but found a number
+ why:  each line of a `table:` block is `key: value`

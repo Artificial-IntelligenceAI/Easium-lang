@@ -4,4 +4,4 @@ mod rational;
 mod value;
 
 pub use rational::{Rational, RationalError};
-pub use value::Value;
+pub use value::{Table, Value};

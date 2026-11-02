@@ -1,0 +1,11 @@
+scores = 90, 65, 70
+scores is_now 1, 2
+ages = table:
+    "Ada": 36
+    "Bbn": 41
+end_of table
+ages is_now table:
+"Cy": 7
+end_of table
+mixed = 0.5, 1.5
+show "made"

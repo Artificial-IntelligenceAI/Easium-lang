@@ -96,6 +96,10 @@ pub enum ExprKind {
     Not(Box<Expr>),
     /// `ask prompt` (D26).
     Ask(Box<Expr>),
+    /// An in-order table: `90, 65, 70` (D33).
+    InOrder(Vec<Expr>),
+    /// A keyed table: a `table:` block of `key: value` lines (D33).
+    Keyed(Vec<(Expr, Expr)>),
 }
 
 /// A word between two operands.

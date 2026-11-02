@@ -26,7 +26,7 @@ pub fn check(program: &ast::Program) -> Result<ir::Program, Diagnostic> {
     })
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 struct Variable {
     slot: usize,
     ty: Type,
@@ -75,6 +75,14 @@ impl Checker {
             } => {
                 let value_span = value.span;
                 let (value, ty) = self.expression(value)?;
+                // D32: how a table is shown is still open.
+                if ty.is_table() {
+                    return Err(Diagnostic::not_decided(
+                        "showing a table",
+                        Some("D32"),
+                        value_span,
+                    ));
+                }
                 // D28
                 if *whether && ty != Type::Boolean {
                     return Err(Diagnostic::mistake(
@@ -190,7 +198,7 @@ impl Checker {
         self.scopes
             .iter()
             .rev()
-            .find_map(|scope| scope.get(name).copied())
+            .find_map(|scope| scope.get(name).cloned())
     }
 
     fn variable(&self, name: &str, span: Span, why: &str) -> Result<Variable, Diagnostic> {
@@ -239,8 +247,60 @@ impl Checker {
                 left,
                 right,
             } => self.binary(*op, *op_span, left, right, span)?,
+            ExprKind::InOrder(items) => self.in_order(items)?,
+            ExprKind::Keyed(entries) => self.keyed(entries)?,
         };
         Ok((ir::Expr { kind, span }, ty))
+    }
+
+    // D32, D33: every value in a table has the type of the first one.
+    fn in_order(&mut self, items: &[ast::Expr]) -> Result<(ir::ExprKind, Type), Diagnostic> {
+        let mut checked = Vec::with_capacity(items.len());
+        let mut value_type: Option<Type> = None;
+        for item in items {
+            let (expression, ty) = self.expression(item)?;
+            same_type_in_table(value_type.as_ref(), &ty, "value", item.span)?;
+            value_type.get_or_insert(ty);
+            checked.push(expression);
+        }
+        let value_type =
+            value_type.ok_or_else(|| Diagnostic::bug("a table with no values", Span::new(0, 0)))?;
+        Ok((
+            ir::ExprKind::InOrder(checked),
+            Type::InOrder(Rc::new(value_type)),
+        ))
+    }
+
+    fn keyed(
+        &mut self,
+        entries: &[(ast::Expr, ast::Expr)],
+    ) -> Result<(ir::ExprKind, Type), Diagnostic> {
+        let mut checked = Vec::with_capacity(entries.len());
+        let mut key_type: Option<Type> = None;
+        let mut value_type: Option<Type> = None;
+        for (key, value) in entries {
+            let (checked_key, this_key_type) = self.expression(key)?;
+            if this_key_type.is_table() {
+                return Err(Diagnostic::not_decided(
+                    "a table as a key",
+                    Some("D32"),
+                    key.span,
+                ));
+            }
+            same_type_in_table(key_type.as_ref(), &this_key_type, "key", key.span)?;
+            key_type.get_or_insert(this_key_type);
+            let (checked_value, this_value_type) = self.expression(value)?;
+            same_type_in_table(value_type.as_ref(), &this_value_type, "value", value.span)?;
+            value_type.get_or_insert(this_value_type);
+            checked.push((checked_key, checked_value));
+        }
+        match (key_type, value_type) {
+            (Some(key_type), Some(value_type)) => Ok((
+                ir::ExprKind::Keyed(checked),
+                Type::Keyed(Rc::new(key_type), Rc::new(value_type)),
+            )),
+            _ => Err(Diagnostic::bug("a table with no entries", Span::new(0, 0))),
+        }
     }
 
     fn boolean_operand(&mut self, word: &str, operand: &ast::Expr) -> Result<ir::Expr, Diagnostic> {
@@ -292,7 +352,7 @@ impl Checker {
             (None, Some(comparison)) => {
                 let ty = operands.comparison(comparison)?;
                 // D29
-                let (left, right) = match (left_type, right_type) {
+                let (left, right) = match (&operands.left.1, &operands.right.1) {
                     (Type::Int, Type::Rational) => {
                         (to_rational(Box::new(checked_left)), checked_right)
                     }
@@ -331,7 +391,7 @@ impl Operands {
         left: Box<ir::Expr>,
         right: Box<ir::Expr>,
     ) -> Result<(ir::ExprKind, Type), Diagnostic> {
-        match (self.left.1, self.right.1) {
+        match (&self.left.1, &self.right.1) {
             (Type::Int, Type::Int) if arithmetic == Arithmetic::DividedBy => {
                 Ok((ir::ExprKind::IntDivide(left, right), Type::Rational))
             }
@@ -375,8 +435,13 @@ impl Operands {
     // D18, D20
     fn comparison(&self, comparison: Comparison) -> Result<Type, Diagnostic> {
         let ordering = !matches!(comparison, Comparison::Is | Comparison::IsNot);
-        match (self.left.1, self.right.1) {
+        match (&self.left.1, &self.right.1) {
             (Type::Int | Type::Rational, Type::Int | Type::Rational) => Ok(Type::Boolean),
+            (left, right) if left.is_table() || right.is_table() => Err(Diagnostic::not_decided(
+                "comparing tables",
+                Some("D32"),
+                self.span,
+            )),
             (Type::Text, Type::Text) if ordering => Err(Diagnostic::not_decided(
                 format!("comparing text with `{}`", self.op.word()),
                 Some("D18"),
@@ -398,9 +463,9 @@ impl Operands {
 
     fn needs_numbers(&self) -> Diagnostic {
         let (side_span, side_type) = if matches!(self.left.1, Type::Int | Type::Rational) {
-            self.right
+            &self.right
         } else {
-            self.left
+            &self.left
         };
         Diagnostic::mistake(
             format!(
@@ -408,8 +473,42 @@ impl Operands {
                 self.op.word(),
                 side_type.described()
             ),
-            side_span,
+            *side_span,
         )
+    }
+}
+
+fn same_type_in_table(
+    expected: Option<&Type>,
+    ty: &Type,
+    part: &str,
+    span: Span,
+) -> Result<(), Diagnostic> {
+    match expected {
+        Some(expected) if expected != ty => {
+            if matches!(
+                (expected, ty),
+                (Type::Int, Type::Rational) | (Type::Rational, Type::Int)
+            ) {
+                return Err(Diagnostic::not_decided(
+                    "a table mixing ints and rationals",
+                    Some("D32"),
+                    span,
+                ));
+            }
+            Err(Diagnostic::mistake(
+                format!(
+                    "this table's {part}s are {}, but this is {}",
+                    expected.plural(),
+                    ty.described()
+                ),
+                span,
+            )
+            .because(format!(
+                "every {part} in a table has the type of the first one"
+            )))
+        }
+        _ => Ok(()),
     }
 }
 

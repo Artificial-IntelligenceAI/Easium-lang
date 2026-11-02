@@ -16,8 +16,8 @@ pub struct Program {
     pub slot_count: usize,
 }
 
-/// The type of a value (D4, D7, D19).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// The type of a value (D4, D7, D19, D32).
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Type {
     /// A 64-bit whole number.
     Int,
@@ -27,18 +27,47 @@ pub enum Type {
     Text,
     /// `true` or `false`.
     Boolean,
+    /// An in-order table, and the type of its values.
+    InOrder(Rc<Type>),
+    /// A keyed table, and the types of its keys and values.
+    Keyed(Rc<Type>, Rc<Type>),
 }
 
 impl Type {
-    /// The type named in a sentence: "an int", "text".
+    /// The type named in a sentence: "an int", "text", "an in-order table of ints".
     #[must_use]
-    pub fn described(self) -> &'static str {
+    pub fn described(&self) -> String {
         match self {
-            Type::Int => "an int",
-            Type::Rational => "a rational",
-            Type::Text => "text",
-            Type::Boolean => "a boolean",
+            Type::Int => "an int".to_owned(),
+            Type::Rational => "a rational".to_owned(),
+            Type::Text => "text".to_owned(),
+            Type::Boolean => "a boolean".to_owned(),
+            Type::InOrder(value) => format!("an in-order table of {}", value.plural()),
+            Type::Keyed(key, value) => {
+                format!("a keyed table from {} to {}", key.plural(), value.plural())
+            }
         }
+    }
+
+    /// The type named as many: "ints", "text".
+    #[must_use]
+    pub fn plural(&self) -> String {
+        match self {
+            Type::Int => "ints".to_owned(),
+            Type::Rational => "rationals".to_owned(),
+            Type::Text => "text".to_owned(),
+            Type::Boolean => "booleans".to_owned(),
+            Type::InOrder(value) => format!("in-order tables of {}", value.plural()),
+            Type::Keyed(key, value) => {
+                format!("keyed tables from {} to {}", key.plural(), value.plural())
+            }
+        }
+    }
+
+    /// Whether this is a table type.
+    #[must_use]
+    pub fn is_table(&self) -> bool {
+        matches!(self, Type::InOrder(_) | Type::Keyed(..))
     }
 }
 
@@ -108,6 +137,10 @@ pub enum ExprKind {
     Not(Box<Expr>),
     /// `ask`, with its prompt (D26).
     Ask(Box<Expr>),
+    /// Makes an in-order table (D33).
+    InOrder(Vec<Expr>),
+    /// Makes a keyed table (D33).
+    Keyed(Vec<(Expr, Expr)>),
 }
 
 /// An arithmetic word (D16).

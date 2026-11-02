@@ -133,7 +133,7 @@ impl Parser<'_> {
             TokenKind::Equals => {
                 self.advance();
                 self.advance();
-                let value = self.expression()?;
+                let value = self.assigned_value()?;
                 Ok(Stmt::Create {
                     name: name.to_owned(),
                     name_span,
@@ -144,7 +144,7 @@ impl Parser<'_> {
             TokenKind::Keyword(Keyword::IsNow) => {
                 self.advance();
                 self.advance();
-                let value = self.expression()?;
+                let value = self.assigned_value()?;
                 Ok(Stmt::Change {
                     name: name.to_owned(),
                     name_span,
@@ -186,6 +186,11 @@ impl Parser<'_> {
                 token.span,
             )),
             TokenKind::Name(word) => Err(self.stray_word(word, token.span)),
+            TokenKind::Comma => Err(Diagnostic::not_decided(
+                "a comma anywhere but in a table right after `=` or `is_now`",
+                Some("D33"),
+                token.span,
+            )),
             _ => Err(Diagnostic::mistake(
                 format!(
                     "expected the end of the line, but found {}",
@@ -267,13 +272,11 @@ impl Parser<'_> {
                 // D25
                 TokenKind::Keyword(Keyword::EndOf) => {
                     self.advance();
-                    return self.end_of(
-                        token.span,
-                        Stmt::If {
-                            branches,
-                            otherwise,
-                        },
-                    );
+                    self.end_of(token.span, Keyword::If)?;
+                    return Ok(Stmt::If {
+                        branches,
+                        otherwise,
+                    });
                 }
                 TokenKind::End => {
                     return Err(Diagnostic::mistake("this `if` has no `end_of if`", if_span)
@@ -284,24 +287,122 @@ impl Parser<'_> {
         }
     }
 
-    fn end_of(&mut self, end_of_span: Span, block: Stmt) -> Result<Stmt, Diagnostic> {
+    // D25: `end_of` and the name of the block it closes.
+    fn end_of(&mut self, end_of_span: Span, block: Keyword) -> Result<(), Diagnostic> {
         let token = self.peek().clone();
-        match &token.kind {
-            TokenKind::Keyword(Keyword::If) => {
+        let expected = format!("end_of {}", block.as_str());
+        let closing = match &token.kind {
+            TokenKind::Keyword(keyword) if *keyword == block => {
                 self.advance();
-                Ok(block)
+                return Ok(());
             }
-            TokenKind::Name(name) => Err(Diagnostic::mistake(
-                format!("`end_of {name}` can't close this block: it's an `if`"),
-                end_of_span.to(token.span),
-            )
-            .fix(&format!("end_of {name}"), "end_of if")
-            .because("the block being closed is an `if`")),
-            _ => Err(Diagnostic::mistake(
-                "`end_of` needs the name of the block it closes",
-                end_of_span,
-            )
-            .fix("end_of", "end_of if")),
+            TokenKind::Keyword(keyword) => keyword.as_str().to_owned(),
+            TokenKind::Name(name) => name.clone(),
+            _ => {
+                return Err(Diagnostic::mistake(
+                    "`end_of` needs the name of the block it closes",
+                    end_of_span,
+                )
+                .fix("end_of", &expected));
+            }
+        };
+        let described = if block == Keyword::If {
+            "an `if`"
+        } else {
+            "a `table`"
+        };
+        Err(Diagnostic::mistake(
+            format!("`end_of {closing}` can't close this block: it's {described}"),
+            end_of_span.to(token.span),
+        )
+        .fix(&format!("end_of {closing}"), &expected)
+        .because(format!("the block being closed is {described}")))
+    }
+
+    // D33: the value after `=` or `is_now` may be a table.
+    fn assigned_value(&mut self) -> Result<Expr, Diagnostic> {
+        if self.peek_keyword() == Some(Keyword::Table) {
+            return self.keyed_table();
+        }
+        let first = self.expression()?;
+        if self.peek().kind != TokenKind::Comma {
+            return Ok(first);
+        }
+        let start = first.span;
+        let mut items = vec![first];
+        while self.peek().kind == TokenKind::Comma {
+            let comma_span = self.peek().span;
+            self.advance();
+            if matches!(self.peek().kind, TokenKind::Newline | TokenKind::End) {
+                return Err(Diagnostic::not_decided(
+                    "a comma at the end of a table, as for a table with one item",
+                    Some("D33"),
+                    comma_span,
+                ));
+            }
+            items.push(self.expression()?);
+        }
+        let end = items.last().map_or(start, |item| item.span);
+        Ok(Expr {
+            kind: ExprKind::InOrder(items),
+            span: start.to(end),
+        })
+    }
+
+    // D33: `table:`, one `key: value` per line, `end_of table`.
+    fn keyed_table(&mut self) -> Result<Expr, Diagnostic> {
+        let table_span = self.peek().span;
+        self.advance();
+        self.block_start("table")?;
+        let mut entries = Vec::new();
+        loop {
+            self.skip_newlines();
+            let token = self.peek().clone();
+            match token.kind {
+                TokenKind::Keyword(Keyword::EndOf) => {
+                    self.advance();
+                    let closing_span = self.peek().span;
+                    self.end_of(token.span, Keyword::Table)?;
+                    if entries.is_empty() {
+                        return Err(Diagnostic::not_decided(
+                            "an empty table",
+                            Some("D33"),
+                            table_span,
+                        ));
+                    }
+                    return Ok(Expr {
+                        kind: ExprKind::Keyed(entries),
+                        span: table_span.to(closing_span),
+                    });
+                }
+                TokenKind::End => {
+                    return Err(Diagnostic::mistake(
+                        "this `table` has no `end_of table`",
+                        table_span,
+                    )
+                    .because("every `table` block closes with `end_of table`"));
+                }
+                _ => {
+                    let key = self.expression()?;
+                    let colon = self.peek().clone();
+                    if colon.kind != TokenKind::Colon {
+                        return Err(Diagnostic::mistake(
+                            format!(
+                                "expected `:` after the key, but found {}",
+                                describe(&colon.kind)
+                            ),
+                            colon.span,
+                        )
+                        .because("each line of a `table:` block is `key: value`"));
+                    }
+                    self.advance();
+                    let value = self.expression()?;
+                    entries.push((key, value));
+                    if self.peek().kind != TokenKind::End {
+                        self.expect_line_end()?;
+                    }
+                }
+            }
         }
     }
 
@@ -501,6 +602,13 @@ impl Parser<'_> {
                     kind: ExprKind::Ask(Box::new(prompt)),
                 });
             }
+            TokenKind::Keyword(Keyword::Table) => {
+                return Err(Diagnostic::not_decided(
+                    "a table anywhere but right after `=` or `is_now`",
+                    Some("D33"),
+                    token.span,
+                ));
+            }
             TokenKind::Keyword(Keyword::Whether) => {
                 return Err(Diagnostic::not_decided(
                     "`whether` anywhere but right after `show`",
@@ -601,6 +709,7 @@ fn describe(kind: &TokenKind) -> String {
         TokenKind::Text(_) => "text".to_owned(),
         TokenKind::Equals => "`=`".to_owned(),
         TokenKind::Colon => "`:`".to_owned(),
+        TokenKind::Comma => "`,`".to_owned(),
         TokenKind::OpenParen => "`(`".to_owned(),
         TokenKind::CloseParen => "`)`".to_owned(),
         TokenKind::Newline => "the end of the line".to_owned(),

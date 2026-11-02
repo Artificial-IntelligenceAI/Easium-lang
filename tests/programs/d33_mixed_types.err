@@ -1,0 +1,5 @@
+stopped: d33_mixed_types.redstone:1:14, line 1 column 14
+ 1 | scores = 90, "a", 70
+   |              ^^^
+ what: this table's values are ints, but this is text
+ why:  every value in a table has the type of the first one

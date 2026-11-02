@@ -56,10 +56,12 @@ pub enum Keyword {
     True,
     /// `false`
     False,
+    /// `table`
+    Table,
 }
 
-// D5, D12, D14, D16, D18, D19, D20, D21, D22, D24, D25, D26, D28
-const KEYWORDS: [(&str, Keyword); 24] = [
+// D5, D12, D14, D16, D18, D19, D20, D21, D22, D24, D25, D26, D28, D33
+const KEYWORDS: [(&str, Keyword); 25] = [
     ("show", Keyword::Show),
     ("whether", Keyword::Whether),
     ("ask", Keyword::Ask),
@@ -84,6 +86,7 @@ const KEYWORDS: [(&str, Keyword); 24] = [
     ("not", Keyword::Not),
     ("true", Keyword::True),
     ("false", Keyword::False),
+    ("table", Keyword::Table),
 ];
 
 impl Keyword {
@@ -121,6 +124,8 @@ pub enum TokenKind {
     Equals,
     /// `:`
     Colon,
+    /// `,`
+    Comma,
     /// `(`
     OpenParen,
     /// `)`
@@ -170,6 +175,7 @@ impl Lexer<'_> {
                 ' ' | '\t' | '\r' => self.position += 1,
                 '\n' => self.single(TokenKind::Newline, start),
                 ':' => self.single(TokenKind::Colon, start),
+                ',' => self.single(TokenKind::Comma, start),
                 '(' => self.single(TokenKind::OpenParen, start),
                 ')' => self.single(TokenKind::CloseParen, start),
                 '=' if self.peek_at(1).is_some_and(|(_, next)| next == '=') => {
