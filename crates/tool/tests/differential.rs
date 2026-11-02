@@ -171,6 +171,62 @@ impl Generator {
         }
     }
 
+    fn loop_statement(&mut self, scope: Scope, depth: usize) {
+        match self.random.below(4) {
+            0 | 1 => {
+                let count = self.random.below(6);
+                self.line(depth, &format!("repeat {count} times:"));
+                let inner = Scope {
+                    in_repeat: true,
+                    in_loop: true,
+                    ..scope
+                };
+                let statements = 1 + self.random.below(3);
+                self.statements(inner, depth + 1, statements);
+                self.line(depth, "end_of repeat");
+            }
+            2 => {
+                // Value and test stops are mostly ones the original items reach; changes to the table and the
+                // odd miss still test the "never reached" error.
+                let item =
+                    self.items[usize::try_from(self.random.below(self.table_length)).unwrap()];
+                let stop = match self.random.below(5) {
+                    0 | 1 => "until last_item".to_owned(),
+                    2 => format!(
+                        "until_before position {}",
+                        1 + self.random.below(self.table_length)
+                    ),
+                    3 => format!("until current_item at_least {item}"),
+                    _ => format!("until_before value {item}"),
+                };
+                self.line(depth, &format!("for items in t {stop}:"));
+                let inner = Scope {
+                    in_for: true,
+                    in_loop: true,
+                    ..scope
+                };
+                let statements = 1 + self.random.below(3);
+                self.statements(inner, depth + 1, statements);
+                self.line(depth, "end_of for");
+            }
+            _ => {
+                let limit = self.random.below(6);
+                self.line(
+                    depth,
+                    &format!("repeat until current_round greater_than {limit}:"),
+                );
+                let inner = Scope {
+                    in_repeat: true,
+                    in_loop: true,
+                    ..scope
+                };
+                let statements = 1 + self.random.below(3);
+                self.statements(inner, depth + 1, statements);
+                self.line(depth, "end_of repeat");
+            }
+        }
+    }
+
     fn statement(&mut self, scope: Scope, depth: usize) {
         let nested = depth < 3;
         match self.random.below(if nested { 14 } else { 9 }) {
@@ -228,57 +284,7 @@ impl Generator {
                 self.line(depth, &format!("line becomes {joined}"));
                 self.line(depth, "show line");
             }
-            9 | 10 => {
-                let count = self.random.below(6);
-                self.line(depth, &format!("repeat {count} times:"));
-                let inner = Scope {
-                    in_repeat: true,
-                    in_loop: true,
-                    ..scope
-                };
-                let statements = 1 + self.random.below(3);
-                self.statements(inner, depth + 1, statements);
-                self.line(depth, "end_of repeat");
-            }
-            11 => {
-                // Value and test stops are mostly ones the original items reach; changes to the table and the
-                // odd miss still test the "never reached" error.
-                let item =
-                    self.items[usize::try_from(self.random.below(self.table_length)).unwrap()];
-                let stop = match self.random.below(5) {
-                    0 | 1 => "until last_item".to_owned(),
-                    2 => format!(
-                        "until_before position {}",
-                        1 + self.random.below(self.table_length)
-                    ),
-                    3 => format!("until current_item at_least {item}"),
-                    _ => format!("until_before value {item}"),
-                };
-                self.line(depth, &format!("for items in t {stop}:"));
-                let inner = Scope {
-                    in_for: true,
-                    in_loop: true,
-                    ..scope
-                };
-                let statements = 1 + self.random.below(3);
-                self.statements(inner, depth + 1, statements);
-                self.line(depth, "end_of for");
-            }
-            12 => {
-                let limit = self.random.below(6);
-                self.line(
-                    depth,
-                    &format!("repeat until current_round greater_than {limit}:"),
-                );
-                let inner = Scope {
-                    in_repeat: true,
-                    in_loop: true,
-                    ..scope
-                };
-                let statements = 1 + self.random.below(3);
-                self.statements(inner, depth + 1, statements);
-                self.line(depth, "end_of repeat");
-            }
+            9..=12 => self.loop_statement(scope, depth),
             _ => {
                 let condition = self.boolean(scope, 2);
                 self.line(depth, &format!("if {condition}:"));
@@ -380,11 +386,10 @@ fn every_way_of_running_agrees() {
     for seed in start..start + count {
         let source = program(seed);
         let reference = run(&source, "reference");
-        if redstone_front::compile(&source).is_err() {
-            panic!(
-                "seed {seed}: the generator wrote a program that doesn't check:\n{source}\n{reference}"
-            );
-        }
+        assert!(
+            redstone_front::compile(&source).is_ok(),
+            "seed {seed}: the generator wrote a program that doesn't check:\n{source}\n{reference}"
+        );
         if reference.contains("--- error ---") {
             checked_errors += 1;
         }
