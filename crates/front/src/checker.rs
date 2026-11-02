@@ -16,6 +16,7 @@ use crate::ir::{self, Arithmetic, Comparison, Type};
 pub fn check(program: &ast::Program) -> Result<ir::Program, Diagnostic> {
     let mut checker = Checker {
         scopes: vec![HashMap::new()],
+        loop_depth: 0,
         ended: HashSet::new(),
         slot_count: 0,
     };
@@ -34,6 +35,8 @@ struct Variable {
 
 struct Checker {
     scopes: Vec<HashMap<String, Variable>>,
+    /// How many loops the statement being checked is inside (D41).
+    loop_depth: usize,
     /// Names made inside blocks that have ended: whether they still exist is open.
     ended: HashSet<String>,
     slot_count: usize,
@@ -53,6 +56,13 @@ impl Checker {
         if let Some(scope) = self.scopes.pop() {
             self.ended.extend(scope.into_keys());
         }
+        result
+    }
+
+    fn loop_body(&mut self, statements: &[ast::Stmt]) -> Result<Vec<ir::Stmt>, Diagnostic> {
+        self.loop_depth += 1;
+        let result = self.nested_block(statements);
+        self.loop_depth -= 1;
         result
     }
 
@@ -100,6 +110,22 @@ impl Checker {
                 })
             }
             ast::Stmt::RepeatTimes { count, body } => self.repeat_times(count, body),
+            ast::Stmt::RepeatForever { body } => Ok(ir::Stmt::RepeatForever {
+                body: self.loop_body(body)?,
+            }),
+            ast::Stmt::Stop { span, condition } => {
+                if self.loop_depth == 0 {
+                    return Err(
+                        Diagnostic::mistake("this `stop` isn't inside a loop", *span)
+                            .because("`stop` leaves the loop it is in"),
+                    );
+                }
+                let condition = condition
+                    .as_ref()
+                    .map(|condition| self.condition(condition))
+                    .transpose()?;
+                Ok(ir::Stmt::Stop { condition })
+            }
             ast::Stmt::RepeatUntil { test, body } => self.repeat_until(test, body),
             ast::Stmt::ForItems {
                 table,
@@ -391,7 +417,7 @@ impl Checker {
         }
         Ok(ir::Stmt::RepeatTimes {
             count: checked,
-            body: self.nested_block(body)?,
+            body: self.loop_body(body)?,
         })
     }
 
@@ -412,7 +438,7 @@ impl Checker {
         }
         Ok(ir::Stmt::RepeatUntil {
             test: checked,
-            body: self.nested_block(body)?,
+            body: self.loop_body(body)?,
         })
     }
 
@@ -483,7 +509,7 @@ impl Checker {
             }
             other => self.stop(other, element)?,
         };
-        Ok((stop, self.nested_block(body)?))
+        Ok((stop, self.loop_body(body)?))
     }
 
     fn condition(&mut self, condition: &ast::Expr) -> Result<ir::Expr, Diagnostic> {

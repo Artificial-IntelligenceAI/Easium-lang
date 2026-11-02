@@ -542,3 +542,20 @@ many times, one per line. A trailing `if` comes after it: `show "Hi" 3x if loud`
 
 Open: a count held in a variable; `x` counts after anything but `show`'s value (other statements, `show items in`);
 whether the value is worked out once or once per line (it matters only for `ask`).
+
+## D41 — `repeat forever` and `stop` (2026-11-02)
+
+Owner: "what about a `repeat forever` loop too?", then "`stop`" for the word that leaves a loop (redstone design
+claude offered `stop`, `leave_loop` or `break`, and recommended `leave_loop`).
+
+```
+repeat forever:
+    answer = ask "Type something (or quit): "
+    stop if answer is "quit"
+    show answer
+end_of repeat
+```
+
+- **`repeat forever:`** runs its block until something leaves it.
+- **`stop`** leaves the loop it is in, the innermost one, in any loop (`repeat … times`, `repeat until`,
+  `repeat forever`, `for items in`). It takes a trailing `if`, as in the example. Outside a loop it is a mistake.

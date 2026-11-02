@@ -10,7 +10,11 @@ use std::collections::BTreeSet;
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::{Child, Command, Output, Stdio};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::thread;
+use std::time::{Duration, Instant};
 
 fn root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -27,6 +31,32 @@ fn programs() -> Vec<PathBuf> {
         .collect();
     programs.sort();
     programs
+}
+
+/// Waits for a test program, killing it after `limit` so a program that never ends (a `repeat forever` with no
+/// way out) fails its test instead of hanging the suite.
+fn wait_at_most(child: Child, limit: Duration) -> Option<Output> {
+    let id = child.id();
+    let finished = Arc::new(AtomicBool::new(false));
+    let timed_out = Arc::new(AtomicBool::new(false));
+    let watchdog = {
+        let (finished, timed_out) = (Arc::clone(&finished), Arc::clone(&timed_out));
+        thread::spawn(move || {
+            let start = Instant::now();
+            while start.elapsed() < limit {
+                if finished.load(Ordering::SeqCst) {
+                    return;
+                }
+                thread::sleep(Duration::from_millis(20));
+            }
+            timed_out.store(true, Ordering::SeqCst);
+            let _ = Command::new("kill").arg("-9").arg(id.to_string()).status();
+        })
+    };
+    let output = child.wait_with_output().unwrap();
+    finished.store(true, Ordering::SeqCst);
+    watchdog.join().unwrap();
+    (!timed_out.load(Ordering::SeqCst)).then_some(output)
 }
 
 #[test]
@@ -48,7 +78,13 @@ fn every_program_behaves_as_expected() {
             .spawn()
             .unwrap();
         child.stdin.take().unwrap().write_all(&input).unwrap();
-        let result = child.wait_with_output().unwrap();
+        let result = wait_at_most(child, Duration::from_secs(10));
+        let Some(result) = result else {
+            failures.push(format!(
+                "{name}: still running after 10 seconds, so it was stopped"
+            ));
+            continue;
+        };
         let stdout = String::from_utf8(result.stdout).unwrap();
         let stderr = String::from_utf8(result.stderr).unwrap();
         let (out_path, err_path) = (program.with_extension("out"), program.with_extension("err"));

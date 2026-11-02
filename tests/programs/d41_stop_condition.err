@@ -1,0 +1,4 @@
+stopped: d41_stop_condition.redstone:2:9, line 2 column 9
+ 2 | stop if 5
+   |         ^
+ what: an `if` needs true or false, but this is an int

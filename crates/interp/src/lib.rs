@@ -26,7 +26,7 @@ pub fn run(
         input,
         output,
     };
-    machine.block(&program.statements)
+    machine.block(&program.statements).map(|_| ())
 }
 
 struct Machine<'io> {
@@ -35,60 +35,97 @@ struct Machine<'io> {
     output: &'io mut dyn Write,
 }
 
+/// What happens after a statement: the next one, or leaving the innermost loop (D41).
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Flow {
+    Next,
+    Stop,
+}
+
 impl Machine<'_> {
-    fn block(&mut self, statements: &[Stmt]) -> Result<(), Diagnostic> {
-        statements
-            .iter()
-            .try_for_each(|statement| self.statement(statement))
+    fn block(&mut self, statements: &[Stmt]) -> Result<Flow, Diagnostic> {
+        for statement in statements {
+            if self.statement(statement)? == Flow::Stop {
+                return Ok(Flow::Stop);
+            }
+        }
+        Ok(Flow::Next)
     }
 
-    fn statement(&mut self, statement: &Stmt) -> Result<(), Diagnostic> {
+    fn statement(&mut self, statement: &Stmt) -> Result<Flow, Diagnostic> {
         match statement {
             Stmt::Assign { slot, value } => {
                 let result = self.evaluate(value)?;
-                let target = self
-                    .slots
-                    .get_mut(*slot)
-                    .ok_or_else(|| Diagnostic::bug("a variable has no slot", value.span))?;
-                *target = result;
-                Ok(())
+                self.set_slot(*slot, result, value.span)?;
             }
             Stmt::Show {
                 value,
                 count,
                 condition,
             } => {
-                if let Some(condition) = condition
-                    && !self.boolean(condition)?
-                {
-                    return Ok(());
+                if self.holds(condition.as_ref())? {
+                    // D40: the value is worked out once and shown `count` times.
+                    let shown = self.evaluate(value)?;
+                    for _ in 0..*count {
+                        self.write_shown(&shown, value.span)?;
+                    }
                 }
-                // D40: the value is worked out once and shown `count` times.
-                let shown = self.evaluate(value)?;
-                for _ in 0..*count {
-                    self.write_shown(&shown, value.span)?;
-                }
-                Ok(())
             }
             Stmt::ChangeItem {
                 slot,
                 selector,
                 value,
                 name_span,
-            } => self.change_item(*slot, selector, value, *name_span),
+            } => self.change_item(*slot, selector, value, *name_span)?,
             Stmt::ShowItems {
                 table,
                 stop,
                 inclusive,
                 condition,
             } => {
-                if let Some(condition) = condition
-                    && !self.boolean(condition)?
-                {
-                    return Ok(());
+                if self.holds(condition.as_ref())? {
+                    self.show_items(table, stop, *inclusive)?;
                 }
-                self.show_items(table, stop, *inclusive)
             }
+            Stmt::RepeatTimes { .. } | Stmt::RepeatUntil { .. } | Stmt::RepeatForever { .. } => {
+                self.repeat(statement)?;
+            }
+            Stmt::ForItems {
+                table,
+                stop,
+                inclusive,
+                current_item,
+                body,
+            } => self.for_items(table, stop, *inclusive, *current_item, body)?,
+            // D41
+            Stmt::Stop { condition } => {
+                if self.holds(condition.as_ref())? {
+                    return Ok(Flow::Stop);
+                }
+            }
+            Stmt::If {
+                branches,
+                otherwise,
+            } => {
+                for (condition, body) in branches {
+                    if self.boolean(condition)? {
+                        return self.block(body);
+                    }
+                }
+                return self.block(otherwise);
+            }
+        }
+        Ok(Flow::Next)
+    }
+
+    /// Whether a statement's trailing `if` holds; true when there is none.
+    fn holds(&mut self, condition: Option<&Expr>) -> Result<bool, Diagnostic> {
+        condition.map_or(Ok(true), |condition| self.boolean(condition))
+    }
+
+    // D39, D41: a `stop` inside leaves the loop.
+    fn repeat(&mut self, statement: &Stmt) -> Result<(), Diagnostic> {
+        match statement {
             Stmt::RepeatTimes { count, body } => {
                 let Value::Int(times) = self.evaluate(count)? else {
                     return Err(type_bug(count.span));
@@ -101,35 +138,22 @@ impl Machine<'_> {
                     ));
                 }
                 for _ in 0..times {
-                    self.block(body)?;
+                    if self.block(body)? == Flow::Stop {
+                        break;
+                    }
                 }
-                Ok(())
             }
             Stmt::RepeatUntil { test, body } => {
                 while !self.boolean(test)? {
-                    self.block(body)?;
-                }
-                Ok(())
-            }
-            Stmt::ForItems {
-                table,
-                stop,
-                inclusive,
-                current_item,
-                body,
-            } => self.for_items(table, stop, *inclusive, *current_item, body),
-            Stmt::If {
-                branches,
-                otherwise,
-            } => {
-                for (condition, body) in branches {
-                    if self.boolean(condition)? {
-                        return self.block(body);
+                    if self.block(body)? == Flow::Stop {
+                        break;
                     }
                 }
-                self.block(otherwise)
             }
+            Stmt::RepeatForever { body } => while self.block(body)? != Flow::Stop {},
+            _ => {}
         }
+        Ok(())
     }
 
     // D35
@@ -228,7 +252,9 @@ impl Machine<'_> {
             };
             for item in values.iter().take(count) {
                 self.set_slot(current_item, item.clone(), table.span)?;
-                self.block(body)?;
+                if self.block(body)? == Flow::Stop {
+                    break;
+                }
             }
             return Ok(());
         }
@@ -242,8 +268,8 @@ impl Machine<'_> {
             if reached && !inclusive {
                 return Ok(());
             }
-            self.block(body)?;
-            if reached {
+            // D41: leaving with `stop` means the stop never has to be reached.
+            if self.block(body)? == Flow::Stop || reached {
                 return Ok(());
             }
         }

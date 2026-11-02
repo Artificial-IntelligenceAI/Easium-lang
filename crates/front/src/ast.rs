@@ -79,6 +79,18 @@ pub enum Stmt {
         /// The block.
         body: Vec<Stmt>,
     },
+    /// `repeat forever:` … `end_of repeat` (D41).
+    RepeatForever {
+        /// The block.
+        body: Vec<Stmt>,
+    },
+    /// `stop`: leaves the innermost loop (D41).
+    Stop {
+        /// Where `stop` is.
+        span: Span,
+        /// Leaves only when this is true.
+        condition: Option<Expr>,
+    },
     /// `for items in scores until …:` … `end_of for`, with `current_item` in the block (D39).
     ForItems {
         /// The table.

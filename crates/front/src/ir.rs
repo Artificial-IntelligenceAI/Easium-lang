@@ -116,6 +116,16 @@ pub enum Stmt {
         /// The block.
         body: Vec<Stmt>,
     },
+    /// Runs a block until a `stop` leaves it (D41).
+    RepeatForever {
+        /// The block.
+        body: Vec<Stmt>,
+    },
+    /// Leaves the innermost loop, if the condition holds (D41).
+    Stop {
+        /// Leaves only when this is true.
+        condition: Option<Expr>,
+    },
     /// Runs a block for each item of an in-order table, up to a stop (D39).
     ForItems {
         /// The table.

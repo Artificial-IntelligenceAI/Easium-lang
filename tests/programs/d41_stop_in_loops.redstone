@@ -1,0 +1,21 @@
+n = 0
+repeat 10 times:
+    n is_now n plus 1
+    if n is 3:
+        stop
+    end_of if
+end_of repeat
+show n
+scores = 90, 65, 70
+for items in scores until value 100:
+    stop if current_item less_than 70
+    show current_item
+end_of for
+repeat 2 times:
+    repeat forever:
+        stop
+    end_of repeat
+    show "outer"
+end_of repeat
+stop = 1
+show stop

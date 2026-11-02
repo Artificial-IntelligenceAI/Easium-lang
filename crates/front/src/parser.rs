@@ -217,12 +217,11 @@ impl Parser<'_> {
             let body = self.loop_block("repeat", repeat_span)?;
             return Ok(Stmt::RepeatUntil { test, body });
         }
+        // D41
         if self.next_word_is("forever") {
-            return Err(Diagnostic::not_decided(
-                "`repeat forever`",
-                None,
-                self.peek().span,
-            ));
+            self.advance();
+            let body = self.loop_block("repeat", repeat_span)?;
+            return Ok(Stmt::RepeatForever { body });
         }
         let (count, _) = self.additive()?;
         if self.peek_keyword() != Some(Keyword::Times) {
@@ -287,6 +286,20 @@ impl Parser<'_> {
             next.kind,
             TokenKind::Equals | TokenKind::Keyword(Keyword::IsNow)
         );
+        // D41: `stop`, or `stop if …`.
+        if name == "stop" && !assigns {
+            self.advance();
+            let condition = if self.peek_keyword() == Some(Keyword::If) {
+                self.advance();
+                Some(self.expression()?)
+            } else {
+                None
+            };
+            return Ok(Stmt::Stop {
+                span: name_span,
+                condition,
+            });
+        }
         if name == "repeat" && !assigns {
             return self.repeat(name_span);
         }

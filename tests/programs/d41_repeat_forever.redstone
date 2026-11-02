@@ -1,0 +1,6 @@
+repeat forever:
+    answer = ask "Type something (or quit): "
+    stop if answer is "quit"
+    show answer
+end_of repeat
+show "Bye"
