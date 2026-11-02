@@ -1,5 +1,5 @@
 //! The interpreter, Redstone's first tier (D3): runs a checked program directly. It is the reference the Cranelift
-//! and LLVM tiers are tested against (rule 10).
+//! tier is tested against (rule 10).
 
 use std::cmp::Ordering;
 use std::io::{BufRead, Write};

@@ -440,3 +440,16 @@ The new value has the type of the table's values (D4, D32).
 
 Open: whether another variable holding the same table sees the change (`b = a`, then changing `b`); adding a key
 this way (`value of "Cy" in ages is_now 7` when `"Cy"` isn't there); changing an item in a table inside a table.
+
+## D36 — No LLVM; Redstone optimizes its own IR for Cranelift (2026-11-02)
+
+Owner, asked "Should we drop LLVM?", then "Yes, but I mean we could optimize the IR we give to Cranelift. Or optimize
+ourselves", to redstone design claude's recommendation (LLVM is the heaviest part of D3, a third tier makes moving
+between tiers much harder, and Cranelift's code is usually within a modest factor of LLVM's).
+
+- **Two tiers:** code starts in the interpreter; code that runs often is compiled with Cranelift. Replaces D3's
+  LLVM tier and D8's LLVM layers (`inkwell`, `llvm-sys`, the C++ wrapper).
+- **Redstone optimizes its own IR before handing it to Cranelift**, for what Cranelift doesn't do and for what only
+  Redstone knows (its types, rationals, tables).
+
+Open: which optimizations, and in what order.
