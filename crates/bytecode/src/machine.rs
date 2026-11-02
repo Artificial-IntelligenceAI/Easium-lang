@@ -10,7 +10,7 @@ use easium_front::{Diagnostic, Span};
 use easium_runtime::{Rational, RationalError, Table, Value};
 
 use crate::compile::Code;
-use crate::op::{Op, Piece, Reg};
+use crate::op::{Op, Operand, Piece, Reg};
 use crate::{CompiledLoop, Registers, Tiering};
 
 /// Runs compiled bytecode, handing hot loops to `tiering` when given (D3, D36).
@@ -89,6 +89,8 @@ impl Machine<'_> {
         }
     }
 
+    // One function on purpose: the frequent instructions run here without a call, which is what makes tier 0 fast.
+    #[allow(clippy::too_many_lines)]
     fn run(
         &mut self,
         code: &Code,
@@ -123,7 +125,45 @@ impl Machine<'_> {
                         pc = *to;
                     }
                 }
+                Op::JumpIfCompare { op, a, b, to } => {
+                    let right = match b {
+                        Operand::Register(b) => self.ints[*b as usize],
+                        Operand::Constant(value) => *value,
+                    };
+                    if compared(*op, self.ints[*a as usize].cmp(&right)) {
+                        pc = *to;
+                    }
+                }
                 // The most frequent instructions run here, without a call; errors go out through cold paths.
+                Op::AddConstant { dst, a, value, at } => {
+                    match self.ints[*a as usize].checked_add(*value) {
+                        Some(result) => self.ints[*dst as usize] = result,
+                        None => return Err(overflow(*at)),
+                    }
+                }
+                Op::SubtractConstant { dst, a, value, at } => {
+                    match self.ints[*a as usize].checked_sub(*value) {
+                        Some(result) => self.ints[*dst as usize] = result,
+                        None => return Err(overflow(*at)),
+                    }
+                }
+                Op::MultiplyConstant { dst, a, value, at } => {
+                    match self.ints[*a as usize].checked_mul(*value) {
+                        Some(result) => self.ints[*dst as usize] = result,
+                        None => return Err(overflow(*at)),
+                    }
+                }
+                Op::RemainderConstant { dst, a, value, at } => {
+                    let left = self.ints[*a as usize];
+                    if left < 0 {
+                        return Err(negative_remainder(*at));
+                    }
+                    self.ints[*dst as usize] = left % *value;
+                }
+                Op::CompareConstant { op, dst, a, value } => {
+                    let ordering = self.ints[*a as usize].cmp(value);
+                    self.ints[*dst as usize] = i64::from(compared(*op, ordering));
+                }
                 Op::MoveInt { dst, src } => self.ints[*dst as usize] = self.ints[*src as usize],
                 Op::IntConstant { dst, value } => self.ints[*dst as usize] = *value,
                 Op::Increment { dst } => {
@@ -565,8 +605,17 @@ impl Machine<'_> {
             Op::Jump { .. }
             | Op::JumpIfFalse { .. }
             | Op::JumpIfTrue { .. }
-            | Op::JumpIfAtLeast { .. } => {
-                return Err(Diagnostic::bug("a jump run as a step", Span::new(0, 0)));
+            | Op::JumpIfAtLeast { .. }
+            | Op::JumpIfCompare { .. }
+            | Op::AddConstant { .. }
+            | Op::SubtractConstant { .. }
+            | Op::MultiplyConstant { .. }
+            | Op::RemainderConstant { .. }
+            | Op::CompareConstant { .. } => {
+                return Err(Diagnostic::bug(
+                    "an instruction the dispatch loop runs, run as a step",
+                    Span::new(0, 0),
+                ));
             }
         }
         Ok(())
@@ -607,6 +656,11 @@ fn compared(op: Comparison, ordering: Ordering) -> bool {
 #[cold]
 fn item_bug() -> Diagnostic {
     Diagnostic::bug("an item past the end of a table", Span::new(0, 0))
+}
+
+#[cold]
+fn negative_remainder(at: Span) -> Diagnostic {
+    Diagnostic::not_decided("`remainder` with a negative number", Some("D16"), at)
 }
 
 #[cold]

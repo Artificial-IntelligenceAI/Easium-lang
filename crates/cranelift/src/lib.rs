@@ -21,7 +21,7 @@ use cranelift_codegen::settings::{self, Configurable};
 use cranelift_frontend::{FunctionBuilder, FunctionBuilderContext, Variable};
 use cranelift_jit::{JITBuilder, JITModule};
 use cranelift_module::{FuncId, Linkage, Module};
-use easium_bytecode::op::{Op, Reg};
+use easium_bytecode::op::{Op, Operand, Reg};
 use easium_bytecode::{Code, CompiledLoop, LoopCompiler};
 use easium_front::ir::{Comparison, Counting};
 use easium_runtime::Rational;
@@ -224,6 +224,18 @@ fn supported(op: &Op, code: &Code) -> bool {
         | Op::Remainder { dst, a, b, .. }
         | Op::CompareInts { dst, a, b, .. } => int(dst) && int(a) && int(b),
         Op::Jump { .. } | Op::NeverReached { .. } => true,
+        Op::AddConstant { dst, a, .. }
+        | Op::SubtractConstant { dst, a, .. }
+        | Op::MultiplyConstant { dst, a, .. }
+        | Op::RemainderConstant { dst, a, .. }
+        | Op::CompareConstant { dst, a, .. } => int(dst) && int(a),
+        Op::JumpIfCompare { a, b, .. } => {
+            int(a)
+                && match b {
+                    Operand::Register(b) => int(b),
+                    Operand::Constant(_) => true,
+                }
+        }
         Op::JumpIfFalse { condition, .. } | Op::JumpIfTrue { condition, .. } => int(condition),
         Op::JumpIfAtLeast { a, b, .. } => int(a) && int(b),
         Op::CheckCount { src, .. } => int(src),
@@ -623,6 +635,49 @@ impl<'b, 'f> LoopBuilder<'b, 'f> {
                 self.builder.ins().brif(at_least, target, &[], next, &[]);
                 return Some(());
             }
+            Op::AddConstant { dst, a, value, .. }
+            | Op::SubtractConstant { dst, a, value, .. }
+            | Op::MultiplyConstant { dst, a, value, .. } => {
+                let a = self.var(*a)?;
+                let b = self.constant(*value);
+                let (result, overflowed) = match op {
+                    Op::AddConstant { .. } => self.builder.ins().sadd_overflow(a, b),
+                    Op::SubtractConstant { .. } => self.builder.ins().ssub_overflow(a, b),
+                    _ => self.builder.ins().smul_overflow(a, b),
+                };
+                self.bail_if(at, overflowed);
+                self.set(*dst, result)?;
+            }
+            Op::RemainderConstant { dst, a, value, .. } => {
+                let a = self.var(*a)?;
+                let negative = self.builder.ins().icmp_imm_s(IntCC::SignedLessThan, a, 0);
+                self.bail_if(at, negative);
+                let b = self.constant(*value);
+                let result = self.builder.ins().srem(a, b);
+                self.set(*dst, result)?;
+            }
+            Op::CompareConstant { op, dst, a, value } => {
+                let a = self.var(*a)?;
+                let compared = self.builder.ins().icmp_imm_s(condition(*op), a, *value);
+                let result = self.builder.ins().uextend(types::I64, compared);
+                self.set(*dst, result)?;
+            }
+            Op::JumpIfCompare { op, a, b, to } => {
+                let a = self.var(*a)?;
+                let compared = match b {
+                    Operand::Register(b) => {
+                        let b = self.var(*b)?;
+                        self.builder.ins().icmp(condition(*op), a, b)
+                    }
+                    Operand::Constant(value) => {
+                        self.builder.ins().icmp_imm_s(condition(*op), a, *value)
+                    }
+                };
+                let target = self.block_for(*to);
+                let next = self.block_for(self.head + at + 1);
+                self.builder.ins().brif(compared, target, &[], next, &[]);
+                return Some(());
+            }
             Op::CheckCount { src, .. } => {
                 let value = self.var(*src)?;
                 let negative = self
@@ -912,6 +967,15 @@ fn int_registers(op: &Op) -> Vec<u32> {
         | Op::CompareInts { dst, a, b, .. } => vec![*dst, *a, *b],
         Op::JumpIfFalse { condition, .. } | Op::JumpIfTrue { condition, .. } => vec![*condition],
         Op::JumpIfAtLeast { a, b, .. } | Op::DivideInts { a, b, .. } => vec![*a, *b],
+        Op::AddConstant { dst, a, .. }
+        | Op::SubtractConstant { dst, a, .. }
+        | Op::MultiplyConstant { dst, a, .. }
+        | Op::RemainderConstant { dst, a, .. }
+        | Op::CompareConstant { dst, a, .. } => vec![*dst, *a],
+        Op::JumpIfCompare { a, b, .. } => match b {
+            Operand::Register(b) => vec![*a, *b],
+            Operand::Constant(_) => vec![*a],
+        },
         Op::CheckCount { src, .. } | Op::IntToRational { src, .. } => vec![*src],
         Op::Item { dst, index, .. } | Op::ReadPosition { dst, index, .. } => {
             number(dst).into_iter().chain([*index]).collect()

@@ -19,6 +19,15 @@ pub enum Reg {
     Object(u32),
 }
 
+/// The second operand of a compare-and-jump: a register, or a constant written in the program.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Operand {
+    /// An int or boolean register.
+    Register(u32),
+    /// A constant.
+    Constant(i64),
+}
+
 /// A piece of a `show_using_format` line: text as written, or a hole already turned into text.
 #[derive(Clone, Debug)]
 pub enum Piece {
@@ -51,6 +60,48 @@ pub enum Op {
     Multiply { dst: u32, a: u32, b: u32, at: Span },
     /// `remainder` on ints.
     Remainder { dst: u32, a: u32, b: u32, at: Span },
+    /// Checked `ints[a] + value`, for a constant written in the program.
+    AddConstant {
+        dst: u32,
+        a: u32,
+        value: i64,
+        at: Span,
+    },
+    /// Checked `ints[a] - value`.
+    SubtractConstant {
+        dst: u32,
+        a: u32,
+        value: i64,
+        at: Span,
+    },
+    /// Checked `ints[a] * value`.
+    MultiplyConstant {
+        dst: u32,
+        a: u32,
+        value: i64,
+        at: Span,
+    },
+    /// `remainder` by a positive constant.
+    RemainderConstant {
+        dst: u32,
+        a: u32,
+        value: i64,
+        at: Span,
+    },
+    /// Compares an int or boolean with a constant.
+    CompareConstant {
+        op: Comparison,
+        dst: u32,
+        a: u32,
+        value: i64,
+    },
+    /// Goes to an instruction when comparing two ints or booleans gives true.
+    JumpIfCompare {
+        op: Comparison,
+        a: u32,
+        b: Operand,
+        to: usize,
+    },
     /// An int divided by an int, giving a rational (D7).
     DivideInts { dst: u32, a: u32, b: u32, at: Span },
     /// An int as a rational (D29).

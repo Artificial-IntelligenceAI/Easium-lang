@@ -7,7 +7,7 @@ use easium_front::ir::{
 use easium_front::{Diagnostic, Span};
 use easium_runtime::Value;
 
-use crate::op::{Op, Piece, Reg};
+use crate::op::{Op, Operand, Piece, Reg};
 
 /// A compiled program: its instructions and how big each register file is.
 pub struct Code {
@@ -83,7 +83,8 @@ impl Compiler {
             Op::Jump { to }
             | Op::JumpIfFalse { to, .. }
             | Op::JumpIfTrue { to, .. }
-            | Op::JumpIfAtLeast { to, .. },
+            | Op::JumpIfAtLeast { to, .. }
+            | Op::JumpIfCompare { to, .. },
         ) = self.ops.get_mut(jump)
         {
             *to = target;
@@ -156,8 +157,43 @@ impl Compiler {
         let Some(condition) = condition else {
             return Ok(None);
         };
+        Ok(Some(self.jump_on(condition, false)?))
+    }
+
+    /// Emits a jump taken when `condition` is `when`, to be pointed later. A comparison of ints or booleans becomes
+    /// one compare-and-jump instruction.
+    fn jump_on(&mut self, condition: &Expr, when: bool) -> Result<usize, Diagnostic> {
+        if let ExprKind::Compare(op, left, right) = &condition.kind
+            && matches!(left.ty, Type::Int | Type::Boolean)
+            && matches!(right.ty, Type::Int | Type::Boolean)
+        {
+            let (Reg::Int(a) | Reg::Boolean(a)) = self.expression(left, None)? else {
+                return Err(Diagnostic::bug(
+                    "an int comparison on non-int registers",
+                    condition.span,
+                ));
+            };
+            let b = match constant_int(right) {
+                Some(value) => Operand::Constant(value),
+                None => match self.expression(right, None)? {
+                    Reg::Int(b) | Reg::Boolean(b) => Operand::Register(b),
+                    _ => {
+                        return Err(Diagnostic::bug(
+                            "an int comparison on non-int registers",
+                            condition.span,
+                        ));
+                    }
+                },
+            };
+            let op = if when { *op } else { negated(*op) };
+            return Ok(self.emit(Op::JumpIfCompare { op, a, b, to: 0 }));
+        }
         let condition = self.boolean(condition)?;
-        Ok(Some(self.emit(Op::JumpIfFalse { condition, to: 0 })))
+        Ok(self.emit(if when {
+            Op::JumpIfTrue { condition, to: 0 }
+        } else {
+            Op::JumpIfFalse { condition, to: 0 }
+        }))
     }
 
     fn end_skip(&mut self, skip: Option<usize>) {
@@ -249,8 +285,7 @@ impl Compiler {
             } => {
                 let mut ends = Vec::with_capacity(branches.len());
                 for (condition, body) in branches {
-                    let condition = self.boolean(condition)?;
-                    let next = self.emit(Op::JumpIfFalse { condition, to: 0 });
+                    let next = self.jump_on(condition, false)?;
                     self.block(body)?;
                     ends.push(self.emit(Op::Jump { to: 0 }));
                     let here = self.here();
@@ -476,11 +511,7 @@ impl Compiler {
         }
         self.move_into(current_round, Reg::Int(round));
         if let Some(test) = test {
-            let done = self.boolean(test)?;
-            let exit = self.emit(Op::JumpIfTrue {
-                condition: done,
-                to: 0,
-            });
+            let exit = self.jump_on(test, true)?;
             self.current_exits()?.push(exit);
         }
         self.block(body)?;
@@ -750,6 +781,24 @@ impl Compiler {
         let at = expression.span;
         let ty = &expression.ty;
         match &expression.kind {
+            ExprKind::IntArithmetic(arithmetic, left, right)
+                if constant_operand(*arithmetic, left, right).is_some() =>
+            {
+                let Some((variable, value)) = constant_operand(*arithmetic, left, right) else {
+                    return Err(Diagnostic::bug("a constant operand that went away", at));
+                };
+                let a = self.int(variable)?;
+                let Reg::Int(dst) = self.destination(into, ty) else {
+                    return Err(Diagnostic::bug("an int result in a non-int register", at));
+                };
+                self.emit(match arithmetic {
+                    Arithmetic::Plus => Op::AddConstant { dst, a, value, at },
+                    Arithmetic::Minus => Op::SubtractConstant { dst, a, value, at },
+                    Arithmetic::Times => Op::MultiplyConstant { dst, a, value, at },
+                    _ => Op::RemainderConstant { dst, a, value, at },
+                });
+                Ok(Reg::Int(dst))
+            }
             ExprKind::IntArithmetic(arithmetic, left, right) => {
                 let (a, b) = (self.int(left)?, self.int(right)?);
                 let Reg::Int(dst) = self.destination(into, ty) else {
@@ -981,6 +1030,19 @@ impl Compiler {
         into: Option<Reg>,
         at: Span,
     ) -> Result<Reg, Diagnostic> {
+        if matches!(left.ty, Type::Int | Type::Boolean)
+            && let Some(value) = constant_int(right)
+            && let Reg::Int(a) | Reg::Boolean(a) = self.expression(left, None)?
+        {
+            let Reg::Boolean(dst) = self.destination(into, &Type::Boolean) else {
+                return Err(Diagnostic::bug(
+                    "a boolean result in a non-boolean register",
+                    at,
+                ));
+            };
+            self.emit(Op::CompareConstant { op, dst, a, value });
+            return Ok(Reg::Boolean(dst));
+        }
         let a = self.expression(left, None)?;
         let b = self.expression(right, None)?;
         let Reg::Boolean(dst) = self.destination(into, &Type::Boolean) else {
@@ -1008,5 +1070,43 @@ impl Compiler {
         };
         self.emit(instruction);
         Ok(Reg::Boolean(dst))
+    }
+}
+
+/// The value of an int or boolean written as a constant in the program.
+fn constant_int(expression: &Expr) -> Option<i64> {
+    match expression.kind {
+        ExprKind::Int(value) => Some(value),
+        ExprKind::Boolean(value) => Some(i64::from(value)),
+        _ => None,
+    }
+}
+
+/// For int arithmetic with a constant written on one side, the other side and the constant: on the right for
+/// any word, on the left only for `plus` and `times`, which don't care about order. `remainder` takes only a positive
+/// constant, so its zero and negative cases stay in the general instruction.
+fn constant_operand<'e>(
+    arithmetic: Arithmetic,
+    left: &'e Expr,
+    right: &'e Expr,
+) -> Option<(&'e Expr, i64)> {
+    match (arithmetic, constant_int(left), constant_int(right)) {
+        (Arithmetic::Remainder, _, Some(value)) if value > 0 => Some((left, value)),
+        (Arithmetic::Remainder | Arithmetic::DividedBy, _, _) => None,
+        (_, _, Some(value)) => Some((left, value)),
+        (Arithmetic::Plus | Arithmetic::Times, Some(value), None) => Some((right, value)),
+        _ => None,
+    }
+}
+
+/// The comparison that is true exactly when `op` is false.
+fn negated(op: Comparison) -> Comparison {
+    match op {
+        Comparison::Is => Comparison::IsNot,
+        Comparison::IsNot => Comparison::Is,
+        Comparison::AtLeast => Comparison::LessThan,
+        Comparison::LessThan => Comparison::AtLeast,
+        Comparison::AtMost => Comparison::GreaterThan,
+        Comparison::GreaterThan => Comparison::AtMost,
     }
 }
