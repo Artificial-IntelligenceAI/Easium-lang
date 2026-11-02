@@ -162,6 +162,16 @@ impl Machine<'_> {
                         (None, _) => return Err(item_bug()),
                     }
                 }
+                Op::AddRationals { dst, a, b, at } => {
+                    let result = self.rationals[*a as usize]
+                        .add_quickly(self.rationals[*b as usize])
+                        .map_err(|error| rational_error(error, *at))?;
+                    self.rationals[*dst as usize] = result;
+                }
+                Op::RationalConstant { dst, value } => self.rationals[*dst as usize] = *value,
+                Op::MoveRational { dst, src } => {
+                    self.rationals[*dst as usize] = self.rationals[*src as usize];
+                }
                 _ => self.step(op)?,
             }
         }
@@ -604,6 +614,7 @@ fn overflow(at: Span) -> Diagnostic {
     Diagnostic::not_decided("what happens when an int overflows", Some("D7"), at)
 }
 
+#[cold]
 fn rational_error(error: RationalError, at: Span) -> Diagnostic {
     match error {
         RationalError::DivisionByZero => division_by_zero(at),
