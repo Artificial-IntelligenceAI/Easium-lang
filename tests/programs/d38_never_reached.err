@@ -1,0 +1,5 @@
+not decided yet: d38_never_reached.redstone:2:34, line 2 column 34
+ 2 | show items in scores until value 100
+   |                                  ^^^
+ what: a stop that's never reached
+ why:  this part of Redstone's design is still open (D38)

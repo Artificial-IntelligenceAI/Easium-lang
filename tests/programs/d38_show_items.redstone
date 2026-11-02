@@ -1,0 +1,22 @@
+scores = 90, 65, 70, 65
+show items in scores until last_item
+show "-"
+show items in scores until position 2
+show "-"
+show items in scores until_before position 2
+show "-"
+show items in scores until value 65
+show "-"
+show items in scores until_before value 65
+show "-"
+show items in scores until current_item less_than 70
+show "-"
+show items in scores until_before current_item less_than 70
+show "-"
+show items in scores until_before last_item
+show "-"
+show items in scores until_before position 1
+show "-"
+show items in scores until last_item if false
+items = 5
+show items

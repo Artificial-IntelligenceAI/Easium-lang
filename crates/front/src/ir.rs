@@ -89,6 +89,17 @@ pub enum Stmt {
         /// Shown only when this is true.
         condition: Option<Expr>,
     },
+    /// Shows a table's items, one per line, up to a stop (D38).
+    ShowItems {
+        /// The in-order table.
+        table: Expr,
+        /// Where to stop.
+        stop: Stop,
+        /// Whether the item where it stops is shown.
+        inclusive: bool,
+        /// Shown only when this is true.
+        condition: Option<Expr>,
+    },
     /// Changes one item of the table in a slot (D35).
     ChangeItem {
         /// The slot holding the table.
@@ -106,6 +117,24 @@ pub enum Stmt {
         branches: Vec<(Expr, Vec<Stmt>)>,
         /// The `else` block; empty when there is none.
         otherwise: Vec<Stmt>,
+    },
+}
+
+/// Where `show items in … until` stops, checked (D38).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Stop {
+    /// After the last item.
+    LastItem,
+    /// At a position, an int.
+    Position(Expr),
+    /// At the first item equal to this.
+    Value(Expr),
+    /// At the first item that makes the test true; `current_item` is in the slot.
+    Test {
+        /// The test.
+        test: Expr,
+        /// The slot `current_item` is read from.
+        current_item: usize,
     },
 }
 

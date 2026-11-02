@@ -468,3 +468,31 @@ b = a
 value at position 1 in b is_now 5
 show value at position 1 in a     # 1
 ```
+
+## D38 — `show items in … until` (2026-11-02)
+
+Shaped together, after redstone design claude offered loops (`for_each`) and `show everything_inside scores`; owner:
+"Actually, nvm. Let's do `show items in scores until last_item`, `show items in scores until <>`", then for the stop:
+"`until value 65`", "`until current_item less_than 70`", "should there be `until before`?", and "Yes" to the set,
+with `until_before` one word by D5 (as `else_if` beside `else`).
+
+With `scores = 90, 65, 70, 65`:
+
+```
+show items in scores until last_item                          # 90 65 70 65
+show items in scores until position 2                         # 90 65
+show items in scores until_before position 2                  # 90
+show items in scores until value 65                           # 90 65
+show items in scores until_before value 65                    # 90
+show items in scores until current_item less_than 70          # 90 65
+show items in scores until_before current_item less_than 70   # 90
+```
+
+- Items are shown from the first, one per line. `until` includes the item where it stops; `until_before` stops just
+  before it.
+- The stop is `last_item`, `position`, `value` (the first item equal to it), or a test on `current_item` (the first
+  item that makes it true).
+
+Open: a stop that is never reached (a value that never appears, a test never true); whether `items in … until` is
+only a `show` form or works anywhere a table can (`first_two = items in scores until position 2`); keyed tables;
+stopping at an offset; loops, which this does not replace.

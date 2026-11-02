@@ -1,0 +1,4 @@
+stopped: d38_value_type.redstone:2:34, line 2 column 34
+ 2 | show items in scores until value "a"
+   |                                  ^^^
+ what: this table's items are ints, but this is text

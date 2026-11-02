@@ -1,0 +1,5 @@
+not decided yet: d38_keyed.redstone:4:15, line 4 column 15
+ 4 | show items in ages until last_item
+   |               ^^^^
+ what: showing the items of a keyed table
+ why:  this part of Redstone's design is still open (D38)

@@ -52,6 +52,17 @@ pub enum Stmt {
         /// Its new value.
         value: Expr,
     },
+    /// `show items in scores until …`: shows a table's items, one per line, up to a stop (D38).
+    ShowItems {
+        /// The table.
+        table: Expr,
+        /// Where to stop.
+        stop: Stop,
+        /// `until` (true) shows the item where it stops; `until_before` (false) doesn't.
+        inclusive: bool,
+        /// Shown only when this is true.
+        condition: Option<Expr>,
+    },
     /// A block `if`, closed by `end_of if` (D22, D24, D25).
     If {
         /// The `if` and each `else_if`, in order.
@@ -127,6 +138,19 @@ pub enum ExprKind {
         /// The key.
         key: Box<Expr>,
     },
+}
+
+/// Where `show items in … until` stops (D38).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Stop {
+    /// `last_item`
+    LastItem,
+    /// `position 2`
+    Position(Expr),
+    /// `value 65`: the first item equal to it.
+    Value(Expr),
+    /// `current_item less_than 70`: the first item that makes it true.
+    Test(Expr),
 }
 
 /// Which item of a table (D34, D35).

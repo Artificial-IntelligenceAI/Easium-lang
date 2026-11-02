@@ -105,6 +105,25 @@ impl Checker {
                 selector,
                 value,
             } => self.change_item(name, *name_span, selector, value),
+            ast::Stmt::ShowItems {
+                table,
+                stop,
+                inclusive,
+                condition,
+            } => {
+                let (table_ir, element) = self.items_table(table)?;
+                let stop = self.stop(stop, &element)?;
+                let condition = condition
+                    .as_ref()
+                    .map(|condition| self.condition(condition))
+                    .transpose()?;
+                Ok(ir::Stmt::ShowItems {
+                    table: table_ir,
+                    stop,
+                    inclusive: *inclusive,
+                    condition,
+                })
+            }
             ast::Stmt::If {
                 branches,
                 otherwise,
@@ -235,6 +254,101 @@ impl Checker {
             value,
             name_span,
         })
+    }
+
+    // D38: an in-order table whose items can be shown.
+    fn items_table(&mut self, table: &ast::Expr) -> Result<(ir::Expr, Type), Diagnostic> {
+        let (checked, ty) = self.expression(table)?;
+        match ty {
+            Type::InOrder(element) if element.is_table() => Err(Diagnostic::not_decided(
+                "showing a table",
+                Some("D32"),
+                table.span,
+            )),
+            Type::InOrder(element) => Ok((checked, (*element).clone())),
+            Type::Keyed(..) => Err(Diagnostic::not_decided(
+                "showing the items of a keyed table",
+                Some("D38"),
+                table.span,
+            )),
+            other => Err(Diagnostic::mistake(
+                format!(
+                    "`show items in` needs an in-order table, but this is {}",
+                    other.described()
+                ),
+                table.span,
+            )),
+        }
+    }
+
+    fn stop(&mut self, stop: &ast::Stop, element: &Type) -> Result<ir::Stop, Diagnostic> {
+        match stop {
+            ast::Stop::LastItem => Ok(ir::Stop::LastItem),
+            ast::Stop::Position(position) => {
+                let (checked, ty) = self.expression(position)?;
+                if ty != Type::Int {
+                    return Err(Diagnostic::mistake(
+                        format!("a position is an int, but this is {}", ty.described()),
+                        position.span,
+                    ));
+                }
+                Ok(ir::Stop::Position(checked))
+            }
+            ast::Stop::Value(value) => {
+                let (checked, ty) = self.expression(value)?;
+                if ty != *element {
+                    if matches!(
+                        (element, &ty),
+                        (Type::Int, Type::Rational) | (Type::Rational, Type::Int)
+                    ) {
+                        return Err(Diagnostic::not_decided(
+                            "stopping at a value of a different number type",
+                            Some("D38"),
+                            value.span,
+                        ));
+                    }
+                    return Err(Diagnostic::mistake(
+                        format!(
+                            "this table's items are {}, but this is {}",
+                            element.plural(),
+                            ty.described()
+                        ),
+                        value.span,
+                    ));
+                }
+                Ok(ir::Stop::Value(checked))
+            }
+            ast::Stop::Test(test) => {
+                // `current_item` holds each item in turn, in a scope of its own.
+                let current_item = self.slot_count;
+                self.slot_count += 1;
+                let mut scope = HashMap::new();
+                scope.insert(
+                    "current_item".to_owned(),
+                    Variable {
+                        slot: current_item,
+                        ty: element.clone(),
+                    },
+                );
+                self.scopes.push(scope);
+                let checked = self.expression(test);
+                self.scopes.pop();
+                let (checked, ty) = checked?;
+                if ty != Type::Boolean {
+                    return Err(Diagnostic::mistake(
+                        format!(
+                            "a stop's test needs true or false, but this is {}",
+                            ty.described()
+                        ),
+                        test.span,
+                    ));
+                }
+                Ok(ir::Stop::Test {
+                    test: checked,
+                    current_item,
+                })
+            }
+        }
     }
 
     fn condition(&mut self, condition: &ast::Expr) -> Result<ir::Expr, Diagnostic> {

@@ -1,7 +1,7 @@
 //! Tokens to the program as written. Arithmetic follows school maths, with `()` to group (D17); where the order of
 //! two words is still open, the parser asks for parentheses instead of picking one (rule 2).
 
-use crate::ast::{BinaryOp, Branch, Counting, Expr, ExprKind, Program, Selector, Stmt};
+use crate::ast::{BinaryOp, Branch, Counting, Expr, ExprKind, Program, Selector, Stmt, Stop};
 use crate::diagnostic::{Diagnostic, Span};
 use crate::lexer::{Keyword, Token, TokenKind};
 
@@ -101,6 +101,11 @@ impl Parser<'_> {
 
     // D28: showing a comparison takes `whether`.
     fn show(&mut self) -> Result<Stmt, Diagnostic> {
+        if self.next_word_is("items")
+            && matches!(&self.peek_at(1).kind, TokenKind::Name(word) if word == "in")
+        {
+            return self.show_items();
+        }
         let whether = self.peek_keyword() == Some(Keyword::Whether);
         if whether {
             self.advance();
@@ -122,6 +127,69 @@ impl Parser<'_> {
         Ok(Stmt::Show {
             value,
             whether,
+            condition,
+        })
+    }
+
+    // D38: `show items in scores until …` and `until_before …`.
+    fn show_items(&mut self) -> Result<Stmt, Diagnostic> {
+        self.advance();
+        self.advance();
+        let table = self.primary()?;
+        let inclusive = if self.next_word_is("until") {
+            true
+        } else if self.next_word_is("until_before") {
+            false
+        } else {
+            let token = self.peek().clone();
+            return Err(Diagnostic::mistake(
+                format!(
+                    "expected `until` or `until_before`, but found {}",
+                    describe(&token.kind)
+                ),
+                token.span,
+            )
+            .because("`show items in` says where to stop"));
+        };
+        self.advance();
+        let stop_token = self.peek().clone();
+        let stop = if self.next_word_is("last_item") {
+            self.advance();
+            Stop::LastItem
+        } else if self.next_word_is("position") {
+            self.advance();
+            Stop::Position(self.additive()?.0)
+        } else if self.next_word_is("value") {
+            self.advance();
+            Stop::Value(self.additive()?.0)
+        } else if self.next_word_is("current_item") {
+            Stop::Test(self.expression()?)
+        } else if self.next_word_is("offset") {
+            return Err(Diagnostic::not_decided(
+                "stopping at an offset",
+                Some("D38"),
+                stop_token.span,
+            ));
+        } else {
+            return Err(Diagnostic::mistake(
+                format!(
+                    "expected where to stop, but found {}",
+                    describe(&stop_token.kind)
+                ),
+                stop_token.span,
+            )
+            .because("a stop is `last_item`, `position`, `value`, or a test on `current_item`"));
+        };
+        let condition = if self.peek_keyword() == Some(Keyword::If) {
+            self.advance();
+            Some(self.expression()?)
+        } else {
+            None
+        };
+        Ok(Stmt::ShowItems {
+            table,
+            stop,
+            inclusive,
             condition,
         })
     }

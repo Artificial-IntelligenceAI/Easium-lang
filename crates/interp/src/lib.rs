@@ -6,7 +6,7 @@ use std::io::{BufRead, Write};
 use std::rc::Rc;
 
 use redstone_front::ir::{
-    Arithmetic, Comparison, Counting, Expr, ExprKind, Program, Selector, Stmt,
+    Arithmetic, Comparison, Counting, Expr, ExprKind, Program, Selector, Stmt, Stop,
 };
 use redstone_front::{Diagnostic, Span};
 use redstone_runtime::{Rational, RationalError, Table, Value};
@@ -67,6 +67,19 @@ impl Machine<'_> {
                 value,
                 name_span,
             } => self.change_item(*slot, selector, value, *name_span),
+            Stmt::ShowItems {
+                table,
+                stop,
+                inclusive,
+                condition,
+            } => {
+                if let Some(condition) = condition
+                    && !self.boolean(condition)?
+                {
+                    return Ok(());
+                }
+                self.show_items(table, stop, *inclusive)
+            }
             Stmt::If {
                 branches,
                 otherwise,
@@ -128,15 +141,74 @@ impl Machine<'_> {
     }
 
     fn show(&mut self, value: &Expr) -> Result<(), Diagnostic> {
+        let shown = self.evaluate(value)?;
+        self.write_shown(&shown, value.span)
+    }
+
+    fn write_shown(&mut self, value: &Value, span: Span) -> Result<(), Diagnostic> {
         // D7: how a rational with no exact decimal is shown is still open.
-        let text = self.evaluate(value)?.show().ok_or_else(|| {
+        let text = value.show().ok_or_else(|| {
             Diagnostic::not_decided(
                 "showing a rational with no exact decimal, like 1/3",
                 Some("D7"),
-                value.span,
+                span,
             )
         })?;
-        writeln!(self.output, "{text}").map_err(|error| output_failed(&error, value.span))
+        writeln!(self.output, "{text}").map_err(|error| output_failed(&error, span))
+    }
+
+    // D38: works out where to stop first, then shows the items before it, one per line.
+    fn show_items(&mut self, table: &Expr, stop: &Stop, inclusive: bool) -> Result<(), Diagnostic> {
+        let Value::Table(contents) = self.evaluate(table)? else {
+            return Err(type_bug(table.span));
+        };
+        let Table::InOrder(values) = &*contents else {
+            return Err(type_bug(table.span));
+        };
+        let stop_index = match stop {
+            Stop::LastItem => values.len().saturating_sub(1),
+            Stop::Position(position) => {
+                let Value::Int(index) = self.evaluate(position)? else {
+                    return Err(type_bug(position.span));
+                };
+                zero_based(index, Counting::Position)
+                    .filter(|zero_based| *zero_based < values.len())
+                    .ok_or_else(|| {
+                        missing_index(index, Counting::Position, values.len(), position.span)
+                    })?
+            }
+            Stop::Value(value) => {
+                let wanted = self.evaluate(value)?;
+                values
+                    .iter()
+                    .position(|item| *item == wanted)
+                    .ok_or_else(|| never_reached(value.span))?
+            }
+            Stop::Test { test, current_item } => {
+                let mut found = None;
+                for (index, item) in values.iter().enumerate() {
+                    let slot = self
+                        .slots
+                        .get_mut(*current_item)
+                        .ok_or_else(|| Diagnostic::bug("`current_item` has no slot", test.span))?;
+                    *slot = item.clone();
+                    if self.boolean(test)? {
+                        found = Some(index);
+                        break;
+                    }
+                }
+                found.ok_or_else(|| never_reached(test.span))?
+            }
+        };
+        let end = if inclusive {
+            stop_index + 1
+        } else {
+            stop_index
+        };
+        for item in values.iter().take(end) {
+            self.write_shown(item, table.span)?;
+        }
+        Ok(())
     }
 
     fn boolean(&mut self, expression: &Expr) -> Result<bool, Diagnostic> {
@@ -416,6 +488,10 @@ fn missing_index(index: i64, counting: Counting, length: usize, span: Span) -> D
     let last = i64::try_from(length).unwrap_or(i64::MAX) - 1 + first;
     Diagnostic::mistake(format!("there's no {word} {index} in this table"), span)
         .because(format!("this table has {word}s {first} to {last}"))
+}
+
+fn never_reached(span: Span) -> Diagnostic {
+    Diagnostic::not_decided("a stop that's never reached", Some("D38"), span)
 }
 
 fn described_key(key: &Value) -> String {

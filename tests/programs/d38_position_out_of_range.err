@@ -1,0 +1,5 @@
+stopped: d38_position_out_of_range.redstone:2:37, line 2 column 37
+ 2 | show items in scores until position 3
+   |                                     ^
+ what: there's no position 3 in this table
+ why:  this table has positions 1 to 2
