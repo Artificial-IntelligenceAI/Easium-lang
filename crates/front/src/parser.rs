@@ -324,10 +324,12 @@ impl Parser<'_> {
                 self.advance();
                 self.advance();
                 let value = self.assigned_value()?;
+                let condition = self.trailing_if()?;
                 Ok(Stmt::Change {
                     name: name.to_owned(),
                     name_span,
                     value,
+                    condition,
                 })
             }
             // D42
@@ -398,12 +400,23 @@ impl Parser<'_> {
         };
         self.advance();
         let value = self.assigned_value()?;
+        let condition = self.trailing_if()?;
         Ok(Stmt::ChangeItem {
             name,
             name_span: table.span,
             selector,
             value,
+            condition,
         })
+    }
+
+    // D43: a trailing `if` on a line.
+    fn trailing_if(&mut self) -> Result<Option<Expr>, Diagnostic> {
+        if self.peek_keyword() != Some(Keyword::If) {
+            return Ok(None);
+        }
+        self.advance();
+        Ok(Some(self.expression()?))
     }
 
     fn expect_line_end(&mut self) -> Result<(), Diagnostic> {
@@ -415,8 +428,8 @@ impl Parser<'_> {
             }
             TokenKind::End => Ok(()),
             TokenKind::Keyword(Keyword::If) => Err(Diagnostic::not_decided(
-                "an `if` at the end of anything but `show`",
-                Some("D20"),
+                "a trailing `if` on `=`, which might leave the variable unmade",
+                Some("D43"),
                 token.span,
             )),
             TokenKind::Name(word) => Err(self.stray_word(word, token.span)),

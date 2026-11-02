@@ -81,6 +81,8 @@ pub enum Stmt {
         slot: usize,
         /// The value.
         value: Expr,
+        /// Runs only when this is true (D43).
+        condition: Option<Expr>,
     },
     /// Shows a value, if the condition holds.
     Show {
@@ -149,6 +151,8 @@ pub enum Stmt {
         value: Expr,
         /// Where the table's name is, for errors while running.
         name_span: Span,
+        /// Runs only when this is true (D43).
+        condition: Option<Expr>,
     },
     /// Runs the first block whose condition holds, or the `else` block.
     If {

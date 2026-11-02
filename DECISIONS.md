@@ -567,3 +567,19 @@ Owner: "`is_now` reads a bit weird, can we change it to `become`?", then "with s
 
 `becomes` changes a variable or an item: `age becomes age plus 1`, `value of "Ada" in ages becomes 37`. Replaces
 `is_now` in D14, D15, D20 and D35. It no longer looks like `is`.
+
+## D43 — A trailing `if` on every line (2026-11-02)
+
+Owner: "yup" (to redstone design claude's question whether a trailing `if` should work on every line, not only
+`show` and `stop`).
+
+```
+lives becomes lives minus 1 if guess is_not "redstone"
+value of "Ada" in ages becomes 37 if birthday
+```
+
+Any line that isn't a block's first line can end with `if <test>`, and runs only when the test is true. Settles
+D20's open question.
+
+Open: a trailing `if` on `=` (`bonus = 10 if lucky`): when the test is false, the variable is never made, so later
+lines could use one that doesn't exist.

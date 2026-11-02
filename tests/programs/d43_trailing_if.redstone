@@ -1,0 +1,19 @@
+lives = 3
+guess = "stone"
+lives becomes lives minus 1 if guess is_not "redstone"
+show lives
+lives becomes 0 if guess is "redstone"
+show lives
+ages = table:
+"Ada": 36
+end_of table
+birthday = true
+value of "Ada" in ages becomes 37 if birthday
+value of "Ada" in ages becomes 99 if false
+show value of "Ada" in ages
+n = 0
+repeat 5 times:
+    n becomes n plus 1
+    stop if n is 2
+end_of repeat
+show n

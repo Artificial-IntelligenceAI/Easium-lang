@@ -1,0 +1,2 @@
+lucky = true
+bonus = 10 if lucky

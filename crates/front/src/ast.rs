@@ -31,6 +31,8 @@ pub enum Stmt {
         name_span: Span,
         /// Its new value.
         value: Expr,
+        /// Runs only when this is true (D43).
+        condition: Option<Expr>,
     },
     /// `show value`, or `show value if condition`.
     Show {
@@ -53,6 +55,8 @@ pub enum Stmt {
         selector: Selector,
         /// Its new value.
         value: Expr,
+        /// Runs only when this is true (D43).
+        condition: Option<Expr>,
     },
     /// `show items in scores until …`: shows a table's items, one per line, up to a stop (D38).
     ShowItems {

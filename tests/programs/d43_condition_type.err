@@ -1,0 +1,4 @@
+stopped: d43_condition_type.redstone:2:16, line 2 column 16
+ 2 | n becomes 2 if n
+   |                ^
+ what: an `if` needs true or false, but this is an int

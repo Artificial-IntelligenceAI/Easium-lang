@@ -59,6 +59,39 @@ impl Checker {
         result
     }
 
+    // D43: puts a checked trailing `if` on a changing statement.
+    fn with_condition(
+        &mut self,
+        statement: ir::Stmt,
+        condition: Option<&ast::Expr>,
+    ) -> Result<ir::Stmt, Diagnostic> {
+        let Some(condition) = condition else {
+            return Ok(statement);
+        };
+        let checked = self.condition(condition)?;
+        Ok(match statement {
+            ir::Stmt::Assign { slot, value, .. } => ir::Stmt::Assign {
+                slot,
+                value,
+                condition: Some(checked),
+            },
+            ir::Stmt::ChangeItem {
+                slot,
+                selector,
+                value,
+                name_span,
+                ..
+            } => ir::Stmt::ChangeItem {
+                slot,
+                selector,
+                value,
+                name_span,
+                condition: Some(checked),
+            },
+            other => other,
+        })
+    }
+
     fn loop_body(&mut self, statements: &[ast::Stmt]) -> Result<Vec<ir::Stmt>, Diagnostic> {
         self.loop_depth += 1;
         let result = self.nested_block(statements);
@@ -77,7 +110,11 @@ impl Checker {
                 name,
                 name_span,
                 value,
-            } => self.change(name, *name_span, value),
+                condition,
+            } => {
+                let changed = self.change(name, *name_span, value)?;
+                self.with_condition(changed, condition.as_ref())
+            }
             ast::Stmt::Show {
                 value,
                 whether,
@@ -89,7 +126,11 @@ impl Checker {
                 name_span,
                 selector,
                 value,
-            } => self.change_item(name, *name_span, selector, value),
+                condition,
+            } => {
+                let changed = self.change_item(name, *name_span, selector, value)?;
+                self.with_condition(changed, condition.as_ref())
+            }
             ast::Stmt::ShowItems {
                 table,
                 stop,
@@ -217,7 +258,11 @@ impl Checker {
         if let Some(scope) = self.scopes.last_mut() {
             scope.insert(name.to_owned(), Variable { slot, ty });
         }
-        Ok(ir::Stmt::Assign { slot, value })
+        Ok(ir::Stmt::Assign {
+            slot,
+            value,
+            condition: None,
+        })
     }
 
     // D4, D14, D15
@@ -248,6 +293,7 @@ impl Checker {
         Ok(ir::Stmt::Assign {
             slot: variable.slot,
             value,
+            condition: None,
         })
     }
 
@@ -299,6 +345,7 @@ impl Checker {
             selector,
             value,
             name_span,
+            condition: None,
         })
     }
 

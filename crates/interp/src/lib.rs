@@ -54,9 +54,15 @@ impl Machine<'_> {
 
     fn statement(&mut self, statement: &Stmt) -> Result<Flow, Diagnostic> {
         match statement {
-            Stmt::Assign { slot, value } => {
-                let result = self.evaluate(value)?;
-                self.set_slot(*slot, result, value.span)?;
+            Stmt::Assign {
+                slot,
+                value,
+                condition,
+            } => {
+                if self.holds(condition.as_ref())? {
+                    let result = self.evaluate(value)?;
+                    self.set_slot(*slot, result, value.span)?;
+                }
             }
             Stmt::Show {
                 value,
@@ -76,7 +82,12 @@ impl Machine<'_> {
                 selector,
                 value,
                 name_span,
-            } => self.change_item(*slot, selector, value, *name_span)?,
+                condition,
+            } => {
+                if self.holds(condition.as_ref())? {
+                    self.change_item(*slot, selector, value, *name_span)?;
+                }
+            }
             Stmt::ShowItems {
                 table,
                 stop,
