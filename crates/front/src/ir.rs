@@ -273,6 +273,8 @@ pub enum ExprKind {
         /// How the index counts.
         counting: Counting,
     },
+    /// Adds up an in-order table of ints or rationals (D56).
+    Sum(Box<Expr>),
     /// Reads a keyed table by key (D34).
     ReadKey {
         /// The table.

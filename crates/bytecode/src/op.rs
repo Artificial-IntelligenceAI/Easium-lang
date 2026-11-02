@@ -176,6 +176,8 @@ pub enum Op {
         counting: Counting,
         at: Span,
     },
+    /// Adds up an in-order table of ints or rationals (D56).
+    Sum { dst: Reg, table: u32, at: Span },
     /// Reads a keyed table by key.
     ReadKey {
         dst: Reg,

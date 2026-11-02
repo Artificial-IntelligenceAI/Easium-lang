@@ -1,0 +1,4 @@
+stopped: d56_sum_not_table.easium:2:13, line 2 column 13
+ 2 | show sum of n
+   |             ^
+ what: `sum of` needs a table of numbers, but this is an int

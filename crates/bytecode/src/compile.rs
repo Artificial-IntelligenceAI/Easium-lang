@@ -768,7 +768,8 @@ impl Compiler {
             ExprKind::InOrder(..)
             | ExprKind::Keyed(..)
             | ExprKind::ReadPosition { .. }
-            | ExprKind::ReadKey { .. } => self.table(expression, into),
+            | ExprKind::ReadKey { .. }
+            | ExprKind::Sum(..) => self.table(expression, into),
         }
     }
 
@@ -1002,6 +1003,16 @@ impl Compiler {
                     table: table_reg,
                     key: key_reg,
                     at: key.span,
+                });
+                Ok(dst)
+            }
+            ExprKind::Sum(table) => {
+                let table_reg = self.object(table)?;
+                let dst = self.destination(into, ty);
+                self.emit(Op::Sum {
+                    dst,
+                    table: table_reg,
+                    at,
                 });
                 Ok(dst)
             }

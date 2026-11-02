@@ -183,6 +183,8 @@ pub enum ExprKind {
         /// How the index counts.
         counting: Counting,
     },
+    /// `sum of prices` (D56).
+    Sum(Box<Expr>),
     /// `value of "Ada" in ages` (D34).
     ReadKey {
         /// The table.

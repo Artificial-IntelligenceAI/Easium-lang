@@ -736,6 +736,7 @@ impl Checker {
                 counting,
             } => self.read_position(table, index, *counting)?,
             ExprKind::ReadKey { table, key } => self.read_key(table, key)?,
+            ExprKind::Sum(table) => self.sum(table)?,
         };
         Ok((
             ir::Expr {
@@ -795,6 +796,40 @@ impl Checker {
             )),
             _ => Err(Diagnostic::bug("a table with no entries", Span::new(0, 0))),
         }
+    }
+
+    // D56: `sum of` adds up an in-order table of numbers, giving the numbers' type.
+    fn sum(&mut self, table: &ast::Expr) -> Result<(ir::ExprKind, Type), Diagnostic> {
+        let (checked, ty) = self.expression(table)?;
+        let element = match &ty {
+            Type::InOrder(element) => (**element).clone(),
+            Type::Keyed(..) => {
+                return Err(Diagnostic::not_decided(
+                    "summing a keyed table",
+                    Some("D56"),
+                    table.span,
+                ));
+            }
+            other => {
+                return Err(Diagnostic::mistake(
+                    format!(
+                        "`sum of` needs a table of numbers, but this is {}",
+                        other.described()
+                    ),
+                    table.span,
+                ));
+            }
+        };
+        if !matches!(element, Type::Int | Type::Rational) {
+            return Err(Diagnostic::mistake(
+                format!(
+                    "`sum of` adds numbers, but this table holds {}",
+                    element.plural()
+                ),
+                table.span,
+            ));
+        }
+        Ok((ir::ExprKind::Sum(Box::new(checked)), element))
     }
 
     // D34

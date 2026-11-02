@@ -725,3 +725,21 @@ rest to the concurrency decision).
 
 Open: whether counts are atomic, which depends on whether and how Easium gets threads (none yet, so today's counts
 are plain); how cycles are collected if shared mutable things (objects, captured variables) ever arrive.
+
+## D56 — `sum of` (2026-11-02)
+
+Owner, on a five-line loop adding up `prices`: "Is that just a complex-ass way to write "sum up everything in prices,
+and store it in total"?", then "Your recom" (easium design claude recommended `sum of prices` over `prices added_up`
+and `add_up prices`).
+
+```
+prices = 120, 45, 80, 15
+total = sum of prices        # 260
+```
+
+`sum of` adds up an in-order table of numbers: ints give an int, rationals a rational. It is a built-in (D9), and binds
+like a single value: `sum of prices plus 1` is `(sum of prices) plus 1`. Summing text or booleans is a mistake; an
+int that overflows stops as any int overflow does (D7).
+
+Open: keyed tables (summing their values); the rest of the family proposed with it (`length of`, `smallest of`,
+`largest of`, `average of`); whether `sum` becomes a reserved word (for now `sum = 5` still makes a variable).

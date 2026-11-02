@@ -602,6 +602,35 @@ impl Machine<'_> {
                     self.write_line(&text, *at)?;
                 }
             }
+            // D56
+            Op::Sum { dst, table, at } => {
+                let total = match *dst {
+                    Reg::Int(_) => {
+                        let mut total: i64 = 0;
+                        for item in self.in_order(*table, *at)? {
+                            let Value::Int(item) = item else {
+                                return Err(type_bug(*at));
+                            };
+                            total = total.checked_add(*item).ok_or_else(|| overflow(*at))?;
+                        }
+                        Value::Int(total)
+                    }
+                    Reg::Rational(_) => {
+                        let mut total = Rational::from_int(0);
+                        for item in self.in_order(*table, *at)? {
+                            let Value::Rational(item) = item else {
+                                return Err(type_bug(*at));
+                            };
+                            total = total
+                                .add_quickly(*item)
+                                .map_err(|error| rational_error(error, *at))?;
+                        }
+                        Value::Rational(total)
+                    }
+                    Reg::Boolean(_) | Reg::Object(_) => return Err(type_bug(*at)),
+                };
+                self.store(*dst, total, *at)?;
+            }
             Op::CheckCount { src, at } => {
                 if self.int(*src) < 0 {
                     return Err(Diagnostic::not_decided(

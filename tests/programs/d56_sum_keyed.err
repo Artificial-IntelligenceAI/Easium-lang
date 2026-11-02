@@ -1,0 +1,5 @@
+not decided yet: d56_sum_keyed.easium:4:13, line 4 column 13
+ 4 | show sum of ages
+   |             ^^^^
+ what: summing a keyed table
+ why:  this part of Easium's design is still open (D56)

@@ -57,7 +57,7 @@ impl Generator {
 
     fn int(&mut self, scope: Scope, depth: u32) -> String {
         if depth == 0 || self.random.chance(3) {
-            let mut leaves = vec!["a", "b", "c", "small", "small", "position"];
+            let mut leaves = vec!["a", "b", "c", "small", "small", "position", "sum of t"];
             if scope.in_repeat {
                 leaves.push("current_round");
             }
