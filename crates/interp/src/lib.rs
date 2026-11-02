@@ -436,13 +436,12 @@ impl Machine<'_> {
                 Ok(Value::Boolean(self.boolean(left)? || self.boolean(right)?))
             }
             ExprKind::Not(operand) => Ok(Value::Boolean(!self.boolean(operand)?)),
-            // D48
-            ExprKind::Join(left, right) => match (self.evaluate(left)?, self.evaluate(right)?) {
-                (Value::Text(left), Value::Text(right)) => {
-                    Ok(Value::Text(Rc::from(format!("{left}{right}"))))
-                }
-                _ => Err(type_bug(span)),
-            },
+            // D48, D49: each side as `show` would show it.
+            ExprKind::Join(left, right) => {
+                let left_text = shown_text(&self.evaluate(left)?, left.span)?;
+                let right_text = shown_text(&self.evaluate(right)?, right.span)?;
+                Ok(Value::Text(Rc::from(format!("{left_text}{right_text}"))))
+            }
             ExprKind::Ask(prompt) => self.ask(prompt),
             // D32, D33
             ExprKind::InOrder(items) => {

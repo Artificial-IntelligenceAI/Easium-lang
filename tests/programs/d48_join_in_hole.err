@@ -1,5 +1,5 @@
 stopped: d48_join_in_hole.redstone:2:27, line 2 column 27
- 2 | show_using_format "<"Hi " <- name>"
-   |                           ^^
- what: `show` can't join text with `<-`
+ 2 | show_using_format "<"Hi " <-- name>"
+   |                           ^^^
+ what: `show` can't join text with `<--`
  why:  text is put together for showing with `show_using_format`

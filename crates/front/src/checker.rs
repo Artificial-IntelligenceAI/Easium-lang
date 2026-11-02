@@ -832,7 +832,7 @@ impl Checker {
         ))
     }
 
-    // D47, D48: `<-` joins text, but not inside `show`.
+    // D47, D48, D49: `<--` joins anything `show` can show, but `show` itself can't join.
     fn join(
         &mut self,
         op_span: Span,
@@ -842,17 +842,17 @@ impl Checker {
     ) -> Result<(ir::ExprKind, Type), Diagnostic> {
         if shown {
             return Err(
-                Diagnostic::mistake("`show` can't join text with `<-`", op_span)
+                Diagnostic::mistake("`show` can't join text with `<--`", op_span)
                     .because("text is put together for showing with `show_using_format`"),
             );
         }
         let (checked_left, left_type) = self.expression(left)?;
         let (checked_right, right_type) = self.expression(right)?;
         for (side, ty) in [(left, &left_type), (right, &right_type)] {
-            if *ty != Type::Text {
+            if ty.is_table() {
                 return Err(Diagnostic::not_decided(
-                    format!("joining {} with `<-`", ty.described()),
-                    Some("D48"),
+                    "joining a table with `<--`",
+                    Some("D32"),
                     side.span,
                 ));
             }

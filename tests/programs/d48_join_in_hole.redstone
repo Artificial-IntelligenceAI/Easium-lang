@@ -1,2 +1,2 @@
 name = "Ada"
-show_using_format "<"Hi " <- name>"
+show_using_format "<"Hi " <-- name>"

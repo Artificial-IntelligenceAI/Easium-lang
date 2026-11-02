@@ -642,3 +642,18 @@ fghj = "asdadad " <- name
 
 Open: joining something that isn't text (`"Age: " <- age`); how `<-` binds beside arithmetic and comparisons (for now
 they need parentheses); whether `<-` is the one symbol among the words (D16's symbols question).
+
+## D49 — `<--` joins anything shown as `show` would (2026-11-02)
+
+Owner:
+
+```
+line = "Age: " <-- age
+```
+
+"Yes, and it's `<--` now, reads easier" (yes to redstone design claude's question whether joining takes numbers and
+other values, shown as `show` would show them).
+
+- **`<--` replaces D48's `<-`.**
+- **Either side may be any value that `show` can show:** `"Age: " <-- age` is `"Age: 36"`. A rational with no exact
+  decimal and a table stay open, as they are for `show` (D7, D32).

@@ -1,0 +1,4 @@
+stopped: d49_old_spelling.redstone:2:18, line 2 column 18
+ 2 | greeting = "Hi " <- name
+   |                  ^^
+ fix:  `<-` → `<--`

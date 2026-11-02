@@ -1,5 +1,0 @@
-not decided yet: d48_join_number.redstone:2:19, line 2 column 19
- 2 | line = "Age: " <- age
-   |                   ^^^
- what: joining an int with `<-`
- why:  this part of Redstone's design is still open (D48)

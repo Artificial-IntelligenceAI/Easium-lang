@@ -1,10 +1,10 @@
 name = "Ada"
-fghj = "asdadad " <- name
+fghj = "asdadad " <-- name
 show fghj
-greeting = "Hi " <- name <- "!"
+greeting = "Hi " <-- name <-- "!"
 show greeting
 first = "Ada"
 last = "Lovelace"
-full = first <- " " <- last
-show_using_format "<full> has <(first <- last) is "AdaLovelace">"
-show whether (first <- last) is "AdaLovelace"
+full = first <-- " " <-- last
+show_using_format "<full> has <(first <-- last) is "AdaLovelace">"
+show whether (first <-- last) is "AdaLovelace"

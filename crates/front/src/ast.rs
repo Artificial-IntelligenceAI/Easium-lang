@@ -261,7 +261,7 @@ pub enum BinaryOp {
     And,
     /// `or`
     Or,
-    /// `<-`
+    /// `<--`
     Join,
 }
 
@@ -283,7 +283,7 @@ impl BinaryOp {
             BinaryOp::LessThan => "less_than",
             BinaryOp::And => "and",
             BinaryOp::Or => "or",
-            BinaryOp::Join => "<-",
+            BinaryOp::Join => "<--",
         }
     }
 }

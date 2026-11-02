@@ -803,7 +803,7 @@ impl Parser<'_> {
         Ok((binary(op, op_span, left, right), Shape::Comparison))
     }
 
-    // D48: `"Hi " <- name`.
+    // D48, D49: `"Hi " <-- name`.
     fn join(&mut self) -> Result<(Expr, Shape), Diagnostic> {
         let (mut left, mut shape) = self.additive()?;
         while self.peek().kind == TokenKind::Join {
@@ -1117,7 +1117,7 @@ fn binary(op: BinaryOp, op_span: Span, left: Expr, right: Expr) -> Expr {
 
 fn join_beside_others(span: Span) -> Diagnostic {
     Diagnostic::not_decided(
-        "`<-` beside arithmetic or a comparison without parentheses",
+        "`<--` beside arithmetic or a comparison without parentheses",
         Some("D48"),
         span,
     )
@@ -1168,7 +1168,7 @@ fn describe(kind: &TokenKind) -> String {
         TokenKind::Equals => "`=`".to_owned(),
         TokenKind::Colon => "`:`".to_owned(),
         TokenKind::Comma => "`,`".to_owned(),
-        TokenKind::Join => "`<-`".to_owned(),
+        TokenKind::Join => "`<--`".to_owned(),
         TokenKind::OpenParen => "`(`".to_owned(),
         TokenKind::CloseParen => "`)`".to_owned(),
         TokenKind::Newline => "the end of the line".to_owned(),

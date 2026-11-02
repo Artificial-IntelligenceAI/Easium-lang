@@ -1,0 +1,10 @@
+age = 36
+line = "Age: " <-- age
+show line
+half = 7 divided_by 2
+adult = true
+summary = age <-- " / " <-- half <-- " / " <-- adult
+show summary
+scores = 90, 65
+first = "First: " <-- value at position 1 in scores
+show first

@@ -1,0 +1,5 @@
+not decided yet: d49_join_table.redstone:2:23, line 2 column 23
+ 2 | line = "Scores: " <-- scores
+   |                       ^^^^^^
+ what: joining a table with `<--`
+ why:  this part of Redstone's design is still open (D32)

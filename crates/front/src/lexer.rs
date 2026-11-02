@@ -128,7 +128,7 @@ pub enum TokenKind {
     Colon,
     /// `,`
     Comma,
-    /// `<-`, which joins text (D48).
+    /// `<--`, which joins (D48, D49).
     Join,
     /// `(`
     OpenParen,
@@ -216,12 +216,19 @@ impl Lexer<'_> {
                 }
                 '=' => self.single(TokenKind::Equals, start),
                 '"' => self.text(start)?,
-                // D48
+                // D48, D49: `<--` joins; `<-` was its first spelling.
                 '<' if self.peek_at(1).is_some_and(|(_, next)| next == '-') => {
-                    self.position += 2;
+                    if self.peek_at(2).is_none_or(|(_, next)| next != '-') {
+                        return Err(Diagnostic::mistake(
+                            "`<-` is now `<--`",
+                            Span::new(start, start + 2),
+                        )
+                        .fix("<-", "<--"));
+                    }
+                    self.position += 3;
                     self.tokens.push(Token {
                         kind: TokenKind::Join,
-                        span: Span::new(start, start + 2),
+                        span: Span::new(start, start + 3),
                     });
                 }
                 '0'..='9' => self.number(start)?,
