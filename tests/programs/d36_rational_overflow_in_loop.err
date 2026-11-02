@@ -1,0 +1,5 @@
+not decided yet: d36_rational_overflow_in_loop.redstone:3:15, line 3 column 15
+ 3 |     x becomes x times x
+   |               ^^^^^^^^^
+ what: what happens when a rational's parts outgrow 64 bits
+ why:  this part of Redstone's design is still open (D7)

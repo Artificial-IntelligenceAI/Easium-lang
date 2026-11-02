@@ -1,0 +1,36 @@
+total = 0
+repeat 1000 times:
+    total becomes total plus current_round times 2
+end_of repeat
+show total
+half = 0.0
+repeat 10 times:
+    half becomes half plus 1 divided_by 2
+end_of repeat
+show half
+scores = 3, 1, 4, 1, 5
+sum = 0
+repeat 3 times:
+    for items in scores until last_item:
+        sum becomes sum plus current_item
+    end_of for
+end_of repeat
+show sum
+i = 1
+odd = 0
+repeat until i greater_than 5:
+    odd becomes odd plus (value at position i in scores remainder 2)
+    i becomes i plus 1
+end_of repeat
+show odd
+even = 0
+repeat 20 times:
+    even becomes even plus 1 if current_round remainder 2 is 0
+    stop if current_round is 15
+end_of repeat
+show even
+flag = false
+repeat 3 times:
+    flag becomes not flag
+end_of repeat
+show whether flag

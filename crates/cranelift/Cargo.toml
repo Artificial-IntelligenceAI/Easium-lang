@@ -1,0 +1,18 @@
+[package]
+name = "redstone-cranelift"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+redstone-bytecode.workspace = true
+redstone-front.workspace = true
+redstone-runtime.workspace = true
+cranelift-codegen = "0.136.0"
+cranelift-frontend = "0.136.0"
+cranelift-jit = "0.136.0"
+cranelift-module = "0.136.0"
+cranelift-native = "0.136.0"

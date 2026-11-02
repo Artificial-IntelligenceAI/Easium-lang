@@ -67,10 +67,11 @@ fn every_program_behaves_as_expected() {
     assert!(!programs.is_empty(), "no test programs found");
     // Rule 10: each program runs in the bytecode interpreter (tier 0) and in the reference interpreter, and both
     // must match the expected files.
+    // A third run puts every loop through Cranelift (D36) from its first round.
     let interpreters: &[&str] = if bless {
         &["reference"]
     } else {
-        &["bytecode", "reference"]
+        &["bytecode", "cranelift", "reference"]
     };
     for (program, interpreter) in programs.iter().flat_map(|program| {
         interpreters
@@ -82,7 +83,22 @@ fn every_program_behaves_as_expected() {
         let mut child = Command::new(env!("CARGO_BIN_EXE_redstone"))
             .arg("run")
             .arg(name)
-            .env("REDSTONE_INTERPRETER", interpreter)
+            .env(
+                "REDSTONE_INTERPRETER",
+                if interpreter == "reference" {
+                    "reference"
+                } else {
+                    "bytecode"
+                },
+            )
+            .env(
+                "REDSTONE_JIT",
+                if interpreter == "cranelift" {
+                    "always"
+                } else {
+                    "off"
+                },
+            )
             .current_dir(program.parent().unwrap())
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())

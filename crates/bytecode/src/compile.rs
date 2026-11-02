@@ -26,7 +26,7 @@ pub struct Code {
 /// # Errors
 ///
 /// Only Redstone's own bugs: a program the checker passed always compiles.
-pub fn compile(program: &Program) -> Result<Code, Diagnostic> {
+pub(crate) fn compile(program: &Program) -> Result<Code, Diagnostic> {
     let mut compiler = Compiler {
         ops: Vec::new(),
         slots: Vec::with_capacity(program.slot_types.len()),

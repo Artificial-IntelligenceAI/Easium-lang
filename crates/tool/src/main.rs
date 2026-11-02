@@ -48,7 +48,8 @@ fn run(path: &str) -> ExitCode {
     {
         redstone_interp::run(&program, &mut input, &mut output)
     } else {
-        redstone_bytecode::run(&program, &mut input, &mut output)
+        let mut tiering = tiering();
+        redstone_bytecode::run_tiered(&program, &mut input, &mut output, tiering.as_mut())
     };
     let _ = output.flush();
     match result {
@@ -58,4 +59,20 @@ fn run(path: &str) -> ExitCode {
             ExitCode::FAILURE
         }
     }
+}
+
+/// D36: hot loops go to Cranelift. `REDSTONE_JIT=off` keeps everything in tier 0; `REDSTONE_JIT=always` compiles
+/// every loop at its first round, which is how the tests run them all through Cranelift (rule 10).
+fn tiering() -> Option<redstone_bytecode::Tiering> {
+    let setting = std::env::var("REDSTONE_JIT").unwrap_or_default();
+    let threshold = match setting.as_str() {
+        "off" => return None,
+        "always" => 0,
+        _ => 1000,
+    };
+    let compiler = redstone_cranelift::Cranelift::new()?;
+    Some(redstone_bytecode::Tiering {
+        compiler: Box::new(compiler),
+        threshold,
+    })
 }

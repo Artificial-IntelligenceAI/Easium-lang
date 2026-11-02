@@ -1,0 +1,6 @@
+scores = 1, 2, 3
+i = 0
+repeat 5 times:
+    i becomes i plus 1
+    show value at position i in scores
+end_of repeat

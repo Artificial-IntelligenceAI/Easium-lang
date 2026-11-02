@@ -1,0 +1,4 @@
+big = 9223372036854775800
+repeat 20 times:
+    big becomes big plus 1
+end_of repeat

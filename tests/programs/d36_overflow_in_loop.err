@@ -1,0 +1,5 @@
+not decided yet: d36_overflow_in_loop.redstone:3:17, line 3 column 17
+ 3 |     big becomes big plus 1
+   |                 ^^^^^^^^^^
+ what: what happens when an int overflows
+ why:  this part of Redstone's design is still open (D7)

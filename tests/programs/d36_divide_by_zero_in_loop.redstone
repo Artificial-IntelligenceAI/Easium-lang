@@ -1,0 +1,6 @@
+n = 3
+x = 0.0
+repeat 5 times:
+    n becomes n minus 1
+    x becomes x plus 1 divided_by n
+end_of repeat

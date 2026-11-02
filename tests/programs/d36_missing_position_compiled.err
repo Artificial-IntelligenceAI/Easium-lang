@@ -1,0 +1,5 @@
+stopped: d36_missing_position_compiled.redstone:6:48, line 6 column 48
+ 6 |     total becomes total plus value at position i in scores
+   |                                                ^
+ what: there's no position 4 in this table
+ why:  this table has positions 1 to 3

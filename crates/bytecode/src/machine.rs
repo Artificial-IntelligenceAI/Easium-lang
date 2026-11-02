@@ -11,8 +11,9 @@ use redstone_runtime::{Rational, RationalError, Table, Value};
 
 use crate::compile::Code;
 use crate::op::{Op, Piece, Reg};
+use crate::{CompiledLoop, Registers, Tiering};
 
-/// Runs compiled bytecode.
+/// Runs compiled bytecode, handing hot loops to `tiering` when given (D3, D36).
 ///
 /// # Errors
 ///
@@ -21,6 +22,7 @@ pub fn execute(
     code: &Code,
     input: &mut dyn BufRead,
     output: &mut dyn Write,
+    tiering: Option<&mut Tiering>,
 ) -> Result<(), Diagnostic> {
     let mut machine = Machine {
         ints: vec![0; code.ints],
@@ -29,7 +31,21 @@ pub fn execute(
         input,
         output,
     };
-    machine.run(&code.ops)
+    let mut loops: Vec<LoopState> = Vec::new();
+    if tiering.is_some() {
+        loops.resize_with(code.ops.len(), || LoopState::Counting(0));
+    }
+    machine.run(code, tiering, &mut loops)
+}
+
+/// What tier 0 knows about the loop whose head is at an instruction.
+enum LoopState {
+    /// Not hot yet: how many times a jump has gone back to it.
+    Counting(u32),
+    /// Compiled; runs from its head and says where to go on from.
+    Compiled(Box<dyn CompiledLoop>),
+    /// The compiler couldn't take it; stays in tier 0.
+    Interpreted,
 }
 
 struct Machine<'io> {
@@ -41,12 +57,57 @@ struct Machine<'io> {
 }
 
 impl Machine<'_> {
-    fn run(&mut self, ops: &[Op]) -> Result<(), Diagnostic> {
+    /// Called on a jump back to `head` from `back`: counts the loop, compiles it once hot, and runs it compiled
+    /// when it can. Returns where to go on from.
+    fn back_edge(
+        &mut self,
+        code: &Code,
+        head: usize,
+        back: usize,
+        tiering: &mut Tiering,
+        loops: &mut [LoopState],
+    ) -> usize {
+        let Some(state) = loops.get_mut(head) else {
+            return head;
+        };
+        if let LoopState::Counting(count) = state {
+            *count += 1;
+            if *count > tiering.threshold {
+                *state = match tiering.compiler.compile(code, head, back) {
+                    Some(compiled) => LoopState::Compiled(compiled),
+                    None => LoopState::Interpreted,
+                };
+            }
+        }
+        match state {
+            LoopState::Compiled(compiled) => compiled.run(&mut Registers {
+                ints: &mut self.ints,
+                rationals: &mut self.rationals,
+                objects: &self.objects,
+            }),
+            LoopState::Counting(_) | LoopState::Interpreted => head,
+        }
+    }
+
+    fn run(
+        &mut self,
+        code: &Code,
+        mut tiering: Option<&mut Tiering>,
+        loops: &mut [LoopState],
+    ) -> Result<(), Diagnostic> {
+        let ops = &code.ops;
         let mut pc = 0;
         while let Some(op) = ops.get(pc) {
             pc += 1;
             match op {
-                Op::Jump { to } => pc = *to,
+                Op::Jump { to } => {
+                    pc = match tiering.as_deref_mut() {
+                        Some(tiering) if *to < pc => {
+                            self.back_edge(code, *to, pc - 1, tiering, loops)
+                        }
+                        _ => *to,
+                    };
+                }
                 Op::JumpIfFalse { condition, to } => {
                     if self.ints[*condition as usize] == 0 {
                         pc = *to;

@@ -1,0 +1,4 @@
+x = 1.5
+repeat 200 times:
+    x becomes x times x
+end_of repeat

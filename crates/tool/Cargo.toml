@@ -15,3 +15,4 @@ path = "src/main.rs"
 redstone-front.workspace = true
 redstone-interp.workspace = true
 redstone-bytecode.workspace = true
+redstone-cranelift.workspace = true
