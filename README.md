@@ -69,3 +69,13 @@ cargo test
 - A test fails the build when code names a decision (`// D7`) that has no test program (rule 3).
 
 `cargo clippy --all-targets -- -D warnings` runs at the pedantic level (rule 4).
+
+## Licences
+
+- [`LICENSE`](LICENSE): **Apache-2.0 WITH LLVM-exception**, for all code. Programs made with Easium owe nothing: the
+  exception waives the notice requirements for the parts of Easium built into a program (D54).
+- [`LICENSE-CC-BY-4.0`](LICENSE-CC-BY-4.0): **CC BY 4.0**, for this repo's writing, its Markdown files (this README,
+  `DECISIONS.md`, `IMPLEMENTATION-RULES.md`). Use them anywhere, commercially too, with credit:
+  `Easium GitHub repo text: https://github.com/Artificial-IntelligenceAI/Easium-lang`.
+  As the licence asks, also say they are under CC BY 4.0, and whether you changed them. Code and code comments stay
+  under `LICENSE`.

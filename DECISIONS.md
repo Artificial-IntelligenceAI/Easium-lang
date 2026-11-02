@@ -702,3 +702,13 @@ The language was called Redstone until now; it is **Easium**. Every name follows
 `Artificial-IntelligenceAI/Easium-lang`, the crates are `easium-*`, the tool is `easium`, the settings are
 `EASIUM_*`, the placeholder extension is `.easium`, and the design session is easium design claude. Earlier entries
 were renamed with it.
+
+## D54 — Licences (2026-11-02)
+
+Owner: "License is Apache 2.0 with LLVM exception, and CC BY 4.0 for docs" (the same pair as Radium's D65).
+
+- **`LICENSE`: Apache-2.0 WITH LLVM-exception**, for all code. The exception waives Apache's notice requirements
+  for the parts of Easium built into a program (its runtime), so programs made with Easium owe nothing.
+- **`LICENSE-CC-BY-4.0`: CC BY 4.0**, for the repo's writing: every Markdown file. Credit line, as Radium's:
+  `Easium GitHub repo text: https://github.com/Artificial-IntelligenceAI/Easium-lang`. Code and code comments stay
+  under `LICENSE`.
