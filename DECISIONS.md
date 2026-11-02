@@ -337,3 +337,28 @@ Where an int meets a rational, in arithmetic or a comparison, the int counts as 
 Owner: "yes" (to redstone design claude's question; one of D17's open proposals). As in maths, every comparison
 binds looser than all arithmetic, `remainder` included: `age plus 1 at_least 18` means `(age plus 1) at_least 18`,
 and `n remainder 2 is 0` means `(n remainder 2) is 0`.
+
+## D31 — Error messages in Radium's style, friendlier (2026-11-02)
+
+Owner: "Btw, should we copy Radium's error message style?", then "yes" to redstone design claude's proposal: copy
+Radium's D116–D118 (`/Users/ts/Radium Design/design-rules/error-messages.md`) with two changes for Redstone's
+audience.
+
+- **Only what's certain.** A mistake with exactly one fix shows it, as code (`` `is not` → `is_not` ``), on a `fix:`
+  line in place of `what:`. With more than one fix, only facts: `what:` is wrong and `why:`. No "did you mean".
+- **The place twice** on the first line: `file:line:column` for tools (the column counts UTF-8 bytes), then
+  `line N column M` for people (the column counts grapheme clusters).
+- **Then the code line, a `^` pointer** under exactly the part in question (grapheme clusters), and lined-up labels.
+- **Changed from Radium:** `why:` is in plain words, with no decision numbers, except on "not decided yet" messages,
+  which only Redstone's own makers should meet. The first word is friendlier: `stopped:` for a mistake,
+  `not decided yet:` for something still open.
+
+```
+stopped: hello.redstone:2:1, line 2 column 1
+ 2 | agee is_now 19
+   | ^^^^
+ what: there's no `agee`
+ why:  a variable has to be made with `=` before `is_now` can change it
+```
+
+Replaces implementation rule 8's "a suggestion where one exists".

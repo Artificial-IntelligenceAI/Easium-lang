@@ -9,3 +9,4 @@ workspace = true
 
 [dependencies]
 redstone-runtime.workspace = true
+unicode-segmentation = "1.12"

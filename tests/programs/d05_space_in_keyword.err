@@ -1,6 +1,5 @@
-error: expected the end of the line, but found `at`
- --> d05_space_in_keyword.redstone:2:24
-  |
-2 | show "Is Adult" if age at least 18
-  |                        ^^
-  = write `at_least`: one thing, no space (D5)
+stopped: d05_space_in_keyword.redstone:2:24, line 2 column 24
+ 2 | show "Is Adult" if age at least 18
+   |                        ^^^^^^^^
+ fix:  `at least` → `at_least`
+ why:  a keyword made of several words is joined with `_`

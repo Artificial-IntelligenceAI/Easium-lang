@@ -77,7 +77,7 @@ impl Checker {
                 let (value, ty) = self.expression(value)?;
                 // D28
                 if *whether && ty != Type::Boolean {
-                    return Err(Diagnostic::error(
+                    return Err(Diagnostic::mistake(
                         format!(
                             "`whether` needs a comparison, but this is {}",
                             ty.described()
@@ -126,8 +126,8 @@ impl Checker {
         let (value, ty) = self.expression(value)?;
         if self.lookup(name).is_some() {
             return Err(
-                Diagnostic::error(format!("`{name}` already exists"), name_span)
-                    .with_hint(format!("to change it, write `{name} is_now …` (D15)")),
+                Diagnostic::mistake(format!("`{name}` already exists"), name_span)
+                    .because("`=` makes a new variable; `is_now` changes one that exists"),
             );
         }
         if self.ended.contains(name) {
@@ -148,11 +148,15 @@ impl Checker {
         name_span: Span,
         value: &ast::Expr,
     ) -> Result<ir::Stmt, Diagnostic> {
-        let variable = self.variable(name, name_span)?;
+        let variable = self.variable(
+            name,
+            name_span,
+            "a variable has to be made with `=` before `is_now` can change it",
+        )?;
         let value_span = value.span;
         let (value, ty) = self.expression(value)?;
         if ty != variable.ty {
-            return Err(Diagnostic::error(
+            return Err(Diagnostic::mistake(
                 format!(
                     "`{name}` is {}, so it can't become {}",
                     variable.ty.described(),
@@ -160,7 +164,7 @@ impl Checker {
                 ),
                 value_span,
             )
-            .with_hint("a variable keeps the type of the value it was made with (D4)"));
+            .because("a variable keeps the type of the value it was made with"));
         }
         Ok(ir::Stmt::Assign {
             slot: variable.slot,
@@ -171,7 +175,7 @@ impl Checker {
     fn condition(&mut self, condition: &ast::Expr) -> Result<ir::Expr, Diagnostic> {
         let (checked, ty) = self.expression(condition)?;
         if ty != Type::Boolean {
-            return Err(Diagnostic::error(
+            return Err(Diagnostic::mistake(
                 format!(
                     "an `if` needs true or false, but this is {}",
                     ty.described()
@@ -189,28 +193,14 @@ impl Checker {
             .find_map(|scope| scope.get(name).copied())
     }
 
-    fn variable(&self, name: &str, span: Span) -> Result<Variable, Diagnostic> {
+    fn variable(&self, name: &str, span: Span, why: &str) -> Result<Variable, Diagnostic> {
         if let Some(variable) = self.lookup(name) {
             return Ok(variable);
         }
         if self.ended.contains(name) {
             return Err(made_in_ended_block(name, span));
         }
-        let diagnostic = Diagnostic::error(format!("there's no `{name}`"), span);
-        Err(match self.closest_name(name) {
-            Some(closest) => diagnostic.with_hint(format!("did you mean `{closest}`?")),
-            None => diagnostic.with_hint(format!("to make it, write `{name} = …` (D12)")),
-        })
-    }
-
-    fn closest_name(&self, name: &str) -> Option<String> {
-        self.scopes
-            .iter()
-            .flat_map(HashMap::keys)
-            .map(|candidate| (edit_distance(name, candidate), candidate))
-            .filter(|(distance, candidate)| *distance <= 2 && *distance < candidate.len())
-            .min()
-            .map(|(_, candidate)| candidate.clone())
+        Err(Diagnostic::mistake(format!("there's no `{name}`"), span).because(why))
     }
 
     fn expression(&mut self, expression: &ast::Expr) -> Result<(ir::Expr, Type), Diagnostic> {
@@ -221,7 +211,11 @@ impl Checker {
             ExprKind::Text(text) => (ir::ExprKind::Text(Rc::from(text.as_str())), Type::Text),
             ExprKind::Boolean(value) => (ir::ExprKind::Boolean(*value), Type::Boolean),
             ExprKind::Name(name) => {
-                let variable = self.variable(name, span)?;
+                let variable = self.variable(
+                    name,
+                    span,
+                    "a variable has to be made with `=` before it's used",
+                )?;
                 (ir::ExprKind::Load(variable.slot), variable.ty)
             }
             ExprKind::Not(operand) => {
@@ -232,7 +226,7 @@ impl Checker {
             ExprKind::Ask(prompt) => {
                 let (checked, ty) = self.expression(prompt)?;
                 if ty != Type::Text {
-                    return Err(Diagnostic::error(
+                    return Err(Diagnostic::mistake(
                         format!("`ask` needs text to show, but this is {}", ty.described()),
                         prompt.span,
                     ));
@@ -252,7 +246,7 @@ impl Checker {
     fn boolean_operand(&mut self, word: &str, operand: &ast::Expr) -> Result<ir::Expr, Diagnostic> {
         let (checked, ty) = self.expression(operand)?;
         if ty != Type::Boolean {
-            return Err(Diagnostic::error(
+            return Err(Diagnostic::mistake(
                 format!(
                     "`{word}` needs true or false, but this is {}",
                     ty.described()
@@ -346,7 +340,7 @@ impl Operands {
                 Type::Int,
             )),
             (Type::Rational, Type::Rational) if arithmetic == Arithmetic::Remainder => Err(
-                Diagnostic::not_decided("`remainder` on rationals", "D16", self.op_span),
+                Diagnostic::not_decided("`remainder` on rationals", Some("D16"), self.op_span),
             ),
             (Type::Rational, Type::Rational) => Ok((
                 ir::ExprKind::RationalArithmetic(arithmetic, left, right),
@@ -357,7 +351,7 @@ impl Operands {
             {
                 Err(Diagnostic::not_decided(
                     "`remainder` on rationals",
-                    "D16",
+                    Some("D16"),
                     self.op_span,
                 ))
             }
@@ -372,7 +366,7 @@ impl Operands {
             )),
             // D26
             (Type::Text, Type::Text) if arithmetic == Arithmetic::Plus => Err(
-                Diagnostic::not_decided("joining text with `plus`", "D26", self.op_span),
+                Diagnostic::not_decided("joining text with `plus`", Some("D26"), self.op_span),
             ),
             _ => Err(self.needs_numbers()),
         }
@@ -385,12 +379,12 @@ impl Operands {
             (Type::Int | Type::Rational, Type::Int | Type::Rational) => Ok(Type::Boolean),
             (Type::Text, Type::Text) if ordering => Err(Diagnostic::not_decided(
                 format!("comparing text with `{}`", self.op.word()),
-                "D18",
+                Some("D18"),
                 self.op_span,
             )),
             (left, right) if left == right && !ordering => Ok(Type::Boolean),
             _ if ordering => Err(self.needs_numbers()),
-            (left, right) => Err(Diagnostic::error(
+            (left, right) => Err(Diagnostic::mistake(
                 format!(
                     "`{}` compares two things of the same type, but this is {} and {}",
                     self.op.word(),
@@ -408,7 +402,7 @@ impl Operands {
         } else {
             self.left
         };
-        Diagnostic::error(
+        Diagnostic::mistake(
             format!(
                 "`{}` needs numbers, but this is {}",
                 self.op.word(),
@@ -430,12 +424,9 @@ fn to_rational(int: Box<ir::Expr>) -> ir::Expr {
 fn made_in_ended_block(name: &str, span: Span) -> Diagnostic {
     Diagnostic::not_decided(
         format!("whether `{name}`, made inside an `if` block, exists after the block ends"),
-        "D22",
+        Some("D22"),
         span,
     )
-    .with_hint(format!(
-        "make `{name}` before the `if` to use it after `end_of if`"
-    ))
 }
 
 fn arithmetic(op: BinaryOp) -> Option<Arithmetic> {
@@ -459,18 +450,4 @@ fn comparison(op: BinaryOp) -> Option<Comparison> {
         BinaryOp::LessThan => Some(Comparison::LessThan),
         _ => None,
     }
-}
-
-fn edit_distance(a: &str, b: &str) -> usize {
-    let b: Vec<char> = b.chars().collect();
-    let mut previous: Vec<usize> = (0..=b.len()).collect();
-    for (i, a_character) in a.chars().enumerate() {
-        let mut current = vec![i + 1];
-        for (j, b_character) in b.iter().enumerate() {
-            let substitution = previous[j] + usize::from(a_character != *b_character);
-            current.push(substitution.min(previous[j + 1] + 1).min(current[j] + 1));
-        }
-        previous = current;
-    }
-    previous[b.len()]
 }

@@ -1,6 +1,5 @@
-error: there's no `agee`
- --> d15_misspelt.redstone:2:1
-  |
-2 | agee is_now 19
-  | ^^^^
-  = did you mean `age`?
+stopped: d15_misspelt.redstone:2:1, line 2 column 1
+ 2 | agee is_now 19
+   | ^^^^
+ what: there's no `agee`
+ why:  a variable has to be made with `=` before `is_now` can change it

@@ -24,7 +24,7 @@ Auto commit & push".
 
 ## Errors
 
-8. **Every user-facing error has a line and column, plain words, and a suggestion where one exists**, and a test.
+8. **Every user-facing error follows D31** (Radium's style: only what's certain, the place twice, `what:`, `why:`, `fix:`), and has a test.
 
 ## Testing
 

@@ -1,6 +1,5 @@
-not decided yet: comparing text with `less_than` (D18)
- --> d18_text_ordering.redstone:1:18
-  |
-1 | show whether "a" less_than "b"
-  |                  ^^^^^^^^^
-  = this part of Redstone's design is still open in DECISIONS.md
+not decided yet: d18_text_ordering.redstone:1:18, line 1 column 18
+ 1 | show whether "a" less_than "b"
+   |                  ^^^^^^^^^
+ what: comparing text with `less_than`
+ why:  this part of Redstone's design is still open (D18)

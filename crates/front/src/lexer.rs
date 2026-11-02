@@ -173,11 +173,11 @@ impl Lexer<'_> {
                 '(' => self.single(TokenKind::OpenParen, start),
                 ')' => self.single(TokenKind::CloseParen, start),
                 '=' if self.peek_at(1).is_some_and(|(_, next)| next == '=') => {
-                    return Err(Diagnostic::error(
+                    return Err(Diagnostic::mistake(
                         "Redstone doesn't use `==`",
                         Span::new(start, start + 2),
                     )
-                    .with_hint("to compare, write `is` (D20); `=` makes a variable (D12)"));
+                    .because("`is` compares two things; `=` makes a variable"));
                 }
                 '=' => self.single(TokenKind::Equals, start),
                 '"' => self.text(start)?,
@@ -242,10 +242,8 @@ impl Lexer<'_> {
                 .is_some_and(|(_, character)| character.is_ascii_digit())
             {
                 let span = Span::new(start, whole_end + 1);
-                return Err(
-                    Diagnostic::error("a decimal needs digits after its point", span)
-                        .with_hint(format!("write `{}.0`", &self.source[start..whole_end])),
-                );
+                return Err(Diagnostic::mistake("this number ends with its point", span)
+                    .because("a decimal has digits on both sides of its point"));
             }
             self.position += 1;
             self.take_while(|character| character.is_ascii_digit());
@@ -260,26 +258,25 @@ impl Lexer<'_> {
                 character.is_ascii_alphanumeric() || character == '_' || character == '.'
             });
             let span = Span::new(start, self.offset());
-            return Err(Diagnostic::error(
+            return Err(Diagnostic::mistake(
                 format!(
                     "`{}` is neither a number nor a name",
                     &self.source[span.start..span.end]
                 ),
                 span,
             )
-            .with_hint("a name can't start with a digit"));
+            .because("a name can't start with a digit"));
         }
         let span = Span::new(start, end);
         let text = &self.source[start..end];
-        let kind =
-            if decimal {
-                TokenKind::Rational(decimal_literal(text, whole_end - start, span)?)
-            } else {
-                // D7: a whole number is an int.
-                TokenKind::Int(text.parse().map_err(|_| {
-                    Diagnostic::not_decided("an int too big for 64 bits", "D7", span)
-                })?)
-            };
+        let kind = if decimal {
+            TokenKind::Rational(decimal_literal(text, whole_end - start, span)?)
+        } else {
+            // D7: a whole number is an int.
+            TokenKind::Int(text.parse().map_err(|_| {
+                Diagnostic::not_decided("an int too big for 64 bits", Some("D7"), span)
+            })?)
+        };
         self.tokens.push(Token { kind, span });
         Ok(())
     }
@@ -300,14 +297,14 @@ impl Lexer<'_> {
             }
             Some((offset, '\\')) => Err(Diagnostic::not_decided(
                 "a backslash inside text",
-                "no decision yet",
+                None,
                 Span::new(offset, offset + 1),
             )),
-            _ => Err(Diagnostic::error(
+            _ => Err(Diagnostic::mistake(
                 "this text has no closing `\"`",
                 Span::new(start, content_end),
             )
-            .with_hint("text has to end on the line it starts")),
+            .because("text has to end on the line it starts")),
         }
     }
 
@@ -317,13 +314,10 @@ impl Lexer<'_> {
             // D6: binary floats come from a friendly spelling that is still open.
             '~' => Diagnostic::not_decided(
                 "how a binary float is written",
-                "D6",
+                Some("D6"),
                 Span::new(start, start + 1),
-            )
-            .with_hint("`0.1` on its own is an exact rational (D7)"),
-            '#' => {
-                Diagnostic::not_decided("comments", "no decision yet", Span::new(start, start + 1))
-            }
+            ),
+            '#' => Diagnostic::not_decided("comments", None, Span::new(start, start + 1)),
             _ if symbols.contains(character) => {
                 self.take_while(|next| symbols.contains(next) || next == '=');
                 let span = Span::new(start, self.offset());
@@ -344,20 +338,20 @@ impl Lexer<'_> {
                 };
                 let diagnostic = Diagnostic::not_decided(
                     format!("symbols such as `{spelling}` beside the words"),
-                    "D16",
+                    Some("D16"),
                     span,
                 );
                 match word {
-                    Some(word) => diagnostic.with_hint(format!("write `{word}`")),
+                    Some(word) => diagnostic.fix(spelling, word),
                     None => diagnostic,
                 }
             }
-            '\u{201C}' | '\u{201D}' => Diagnostic::error(
+            '\u{201C}' | '\u{201D}' => Diagnostic::mistake(
                 "Redstone doesn't use curly quotes",
                 Span::new(start, start + character.len_utf8()),
             )
-            .with_hint("use straight quotes: \""),
-            _ => Diagnostic::error(
+            .fix(&character.to_string(), "\""),
+            _ => Diagnostic::mistake(
                 format!("Redstone doesn't use `{character}`"),
                 Span::new(start, start + character.len_utf8()),
             ),
@@ -367,7 +361,8 @@ impl Lexer<'_> {
 
 // D7: a decimal is an exact rational, so `0.1` is 1/10.
 fn decimal_literal(text: &str, whole_length: usize, span: Span) -> Result<Rational, Diagnostic> {
-    let too_big = || Diagnostic::not_decided("a rational whose parts outgrow 64 bits", "D7", span);
+    let too_big =
+        || Diagnostic::not_decided("a rational whose parts outgrow 64 bits", Some("D7"), span);
     let digits: String = text.chars().filter(char::is_ascii_digit).collect();
     let places = u32::try_from(text.len() - whole_length - 1).map_err(|_| too_big())?;
     let numerator: i128 = digits.parse().map_err(|_| too_big())?;

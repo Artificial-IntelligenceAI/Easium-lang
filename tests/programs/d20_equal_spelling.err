@@ -1,6 +1,5 @@
-error: expected the end of the line, but found `equal`
- --> d20_equal_spelling.redstone:2:21
-  |
-2 | show "Adult" if age equal 18
-  |                     ^^^^^
-  = to compare, write `is` (D20)
+stopped: d20_equal_spelling.redstone:2:21, line 2 column 21
+ 2 | show "Adult" if age equal 18
+   |                     ^^^^^
+ fix:  `equal` → `is`
+ why:  `is` compares two things

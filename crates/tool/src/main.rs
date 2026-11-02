@@ -22,7 +22,7 @@ fn run(path: &str) -> ExitCode {
     let source = match std::fs::read_to_string(path) {
         Ok(source) => source,
         Err(error) => {
-            eprintln!("error: couldn't read `{path}`: {error}");
+            eprintln!("stopped: couldn't read `{path}`: {error}");
             return ExitCode::FAILURE;
         }
     };

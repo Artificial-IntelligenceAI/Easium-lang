@@ -30,6 +30,9 @@ pub fn parse(tokens: &[Token]) -> Result<Program, Diagnostic> {
     Ok(Program { statements })
 }
 
+/// The rule behind every keyword spelt with `_` (D5).
+const JOINED: &str = "a keyword made of several words is joined with `_`";
+
 /// How an expression was built, for the places where mixing two words without parentheses is still open.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Shape {
@@ -86,7 +89,7 @@ impl Parser<'_> {
                 self.if_block(token.span)
             }
             TokenKind::Keyword(keyword @ (Keyword::ElseIf | Keyword::Else | Keyword::EndOf)) => {
-                Err(Diagnostic::error(
+                Err(Diagnostic::mistake(
                     format!("this `{}` has no `if` to belong to", keyword.as_str()),
                     token.span,
                 ))
@@ -105,8 +108,9 @@ impl Parser<'_> {
         let (value, shape) = self.logic()?;
         if !whether && matches!(shape, Shape::Comparison | Shape::Logic | Shape::Not) {
             return Err(
-                Diagnostic::error("showing a comparison takes `whether`", value.span)
-                    .with_hint("write `show whether …` (D28)"),
+                Diagnostic::mistake("showing a comparison takes `whether`", value.span)
+                    .fix("show", "show whether")
+                    .because("a comparison after `show` would read as a claim, not a question"),
             );
         }
         let condition = if self.peek_keyword() == Some(Keyword::If) {
@@ -148,33 +152,24 @@ impl Parser<'_> {
                 })
             }
             // D25
-            TokenKind::Name(of) if name == "end" && of == "of" => Err(Diagnostic::error(
+            TokenKind::Name(of) if name == "end" && of == "of" => Err(Diagnostic::mistake(
                 "`end of` is one word",
                 name_span.to(next.span),
             )
-            .with_hint("write `end_of if` (D25)")),
+            .fix("end of", "end_of")
+            .because(JOINED)),
             _ => self.expression_statement(),
         }
     }
 
     fn expression_statement(&mut self) -> Result<Stmt, Diagnostic> {
         let expression = self.expression()?;
-        let diagnostic = Diagnostic::error(
+        let diagnostic = Diagnostic::mistake(
             "this line works something out but does nothing with it",
             expression.span,
         );
-        if let ExprKind::Binary {
-            op: BinaryOp::Is,
-            left,
-            ..
-        } = &expression.kind
-            && let ExprKind::Name(name) = &left.kind
-        {
-            return Err(
-                diagnostic.with_hint(format!("to change `{name}`, write `{name} is_now …` (D14)"))
-            );
-        }
-        Err(diagnostic.with_hint("to show it, put `show` in front"))
+        Err(diagnostic
+            .because("a line shows something, makes or changes a variable, or starts a block"))
     }
 
     fn expect_line_end(&mut self) -> Result<(), Diagnostic> {
@@ -187,11 +182,11 @@ impl Parser<'_> {
             TokenKind::End => Ok(()),
             TokenKind::Keyword(Keyword::If) => Err(Diagnostic::not_decided(
                 "an `if` at the end of anything but `show`",
-                "D20",
+                Some("D20"),
                 token.span,
             )),
             TokenKind::Name(word) => Err(self.stray_word(word, token.span)),
-            _ => Err(Diagnostic::error(
+            _ => Err(Diagnostic::mistake(
                 format!(
                     "expected the end of the line, but found {}",
                     describe(&token.kind)
@@ -202,7 +197,7 @@ impl Parser<'_> {
     }
 
     fn stray_word(&self, word: &str, span: Span) -> Diagnostic {
-        let diagnostic = Diagnostic::error(
+        let diagnostic = Diagnostic::mistake(
             format!("expected the end of the line, but found `{word}`"),
             span,
         );
@@ -212,12 +207,17 @@ impl Parser<'_> {
         };
         match (word, next) {
             // D20
-            ("equal", _) => diagnostic.with_hint("to compare, write `is` (D20)"),
-            ("not_equal", _) => diagnostic.with_hint("write `is_not` (D20)"),
+            ("equal", _) => diagnostic
+                .fix("equal", "is")
+                .because("`is` compares two things"),
+            ("not_equal", _) => diagnostic.fix("not_equal", "is_not"),
             // D5
-            ("at", "least" | "most") => {
-                diagnostic.with_hint(format!("write `at_{next}`: one thing, no space (D5)"))
-            }
+            ("at", "least" | "most") => Diagnostic::mistake(
+                format!("`at {next}` is one word"),
+                span.to(self.peek_at(1).span),
+            )
+            .fix(&format!("at {next}"), &format!("at_{next}"))
+            .because(JOINED),
             _ => diagnostic,
         }
     }
@@ -234,7 +234,7 @@ impl Parser<'_> {
                 // D24
                 TokenKind::Keyword(Keyword::ElseIf) => {
                     if otherwise.is_some() {
-                        return Err(Diagnostic::error(
+                        return Err(Diagnostic::mistake(
                             "an `else_if` can't come after `else`",
                             token.span,
                         ));
@@ -247,18 +247,19 @@ impl Parser<'_> {
                 }
                 TokenKind::Keyword(Keyword::Else) => {
                     if otherwise.is_some() {
-                        return Err(Diagnostic::error(
+                        return Err(Diagnostic::mistake(
                             "this `if` already has an `else`",
                             token.span,
                         ));
                     }
                     self.advance();
                     if self.peek_keyword() == Some(Keyword::If) {
-                        return Err(Diagnostic::error(
+                        return Err(Diagnostic::mistake(
                             "`else if` is one word",
                             token.span.to(self.peek().span),
                         )
-                        .with_hint("write `else_if` (D24)"));
+                        .fix("else if", "else_if")
+                        .because(JOINED));
                     }
                     self.block_start("else")?;
                     otherwise = Some(self.block_body()?);
@@ -275,8 +276,8 @@ impl Parser<'_> {
                     );
                 }
                 TokenKind::End => {
-                    return Err(Diagnostic::error("this `if` has no `end_of if`", if_span)
-                        .with_hint("add `end_of if` after its last line (D25)"));
+                    return Err(Diagnostic::mistake("this `if` has no `end_of if`", if_span)
+                        .because("every `if` block closes with `end_of if`"));
                 }
                 _ => return Err(Diagnostic::bug("an `if` block stopped early", token.span)),
             }
@@ -290,16 +291,17 @@ impl Parser<'_> {
                 self.advance();
                 Ok(block)
             }
-            TokenKind::Name(name) => Err(Diagnostic::error(
+            TokenKind::Name(name) => Err(Diagnostic::mistake(
                 format!("`end_of {name}` can't close this block: it's an `if`"),
                 end_of_span.to(token.span),
             )
-            .with_hint("write `end_of if` (D25)")),
-            _ => Err(Diagnostic::error(
+            .fix(&format!("end_of {name}"), "end_of if")
+            .because("the block being closed is an `if`")),
+            _ => Err(Diagnostic::mistake(
                 "`end_of` needs the name of the block it closes",
                 end_of_span,
             )
-            .with_hint("write `end_of if` (D25)")),
+            .fix("end_of", "end_of if")),
         }
     }
 
@@ -307,14 +309,14 @@ impl Parser<'_> {
     fn block_start(&mut self, opener: &str) -> Result<(), Diagnostic> {
         let token = self.peek().clone();
         if token.kind != TokenKind::Colon {
-            return Err(Diagnostic::error(
+            return Err(Diagnostic::mistake(
                 format!(
                     "this `{opener}` needs a `:` here, but found {}",
                     describe(&token.kind)
                 ),
                 token.span,
             )
-            .with_hint("end the line with `:` (D22)"));
+            .because("a block's first line ends with `:`"));
         }
         self.advance();
         let token = self.peek().clone();
@@ -326,10 +328,9 @@ impl Parser<'_> {
             TokenKind::End => Ok(()),
             _ => Err(Diagnostic::not_decided(
                 "a block on the same line as its `:`",
-                "D22",
+                Some("D22"),
                 token.span,
-            )
-            .with_hint("start the block on the next line")),
+            )),
         }
     }
 
@@ -363,10 +364,9 @@ impl Parser<'_> {
             if first.is_some_and(|first| first != keyword) {
                 return Err(Diagnostic::not_decided(
                     "mixing `and` and `or` without parentheses",
-                    "D21",
+                    Some("D21"),
                     op_span,
-                )
-                .with_hint("add parentheses, like `(a and b) or c`"));
+                ));
             }
             first = Some(keyword);
             self.advance();
@@ -392,17 +392,19 @@ impl Parser<'_> {
         self.advance();
         if op == BinaryOp::Is && self.peek_keyword() == Some(Keyword::Not) {
             return Err(
-                Diagnostic::error("`is not` is one word", op_span.to(self.peek().span))
-                    .with_hint("write `is_not` (D20)"),
+                Diagnostic::mistake("`is not` is one word", op_span.to(self.peek().span))
+                    .fix("is not", "is_not")
+                    .because(JOINED),
             );
         }
         // D30: comparisons bind looser than all arithmetic, so the arithmetic on each side comes first.
         let (right, _) = self.additive()?;
         if self.peek_keyword().and_then(comparison_op).is_some() {
-            return Err(
-                Diagnostic::not_decided("chaining comparisons", "D18", self.peek().span)
-                    .with_hint("join them with `and`, like `a less_than b and b less_than c`"),
-            );
+            return Err(Diagnostic::not_decided(
+                "chaining comparisons",
+                Some("D18"),
+                self.peek().span,
+            ));
         }
         Ok((binary(op, op_span, left, right), Shape::Comparison))
     }
@@ -473,10 +475,9 @@ impl Parser<'_> {
         if next_is_arithmetic_or_comparison {
             return Err(Diagnostic::not_decided(
                 "`not` before arithmetic or a comparison without parentheses",
-                "D21",
+                Some("D21"),
                 expression.span,
-            )
-            .with_hint("add parentheses, like `not (age is 5)`"));
+            ));
         }
         Ok((expression, Shape::Not))
     }
@@ -503,18 +504,19 @@ impl Parser<'_> {
             TokenKind::Keyword(Keyword::Whether) => {
                 return Err(Diagnostic::not_decided(
                     "`whether` anywhere but right after `show`",
-                    "D28",
+                    Some("D28"),
                     token.span,
                 ));
             }
             TokenKind::Keyword(Keyword::Minus) => {
-                return Err(
-                    Diagnostic::not_decided("negative numbers", "D16", token.span)
-                        .with_hint("write `0 minus 5`"),
-                );
+                return Err(Diagnostic::not_decided(
+                    "negative numbers",
+                    Some("D16"),
+                    token.span,
+                ));
             }
             other => {
-                return Err(Diagnostic::error(
+                return Err(Diagnostic::mistake(
                     format!("expected a value here, but found {}", describe(&other)),
                     token.span,
                 ));
@@ -533,8 +535,8 @@ impl Parser<'_> {
         let inner = self.expression()?;
         let close = self.peek().clone();
         if close.kind != TokenKind::CloseParen {
-            return Err(Diagnostic::error("this `(` is never closed", open_span)
-                .with_hint(format!("add `)`; found {} instead", describe(&close.kind))));
+            return Err(Diagnostic::mistake("this `(` is never closed", open_span)
+                .because("every `(` needs a matching `)`"));
         }
         self.advance();
         Ok(Expr {
@@ -563,10 +565,9 @@ fn has_remainder(shape: Shape) -> bool {
 fn remainder_beside_arithmetic(span: Span) -> Diagnostic {
     Diagnostic::not_decided(
         "`remainder` beside other arithmetic without parentheses",
-        "D17",
+        Some("D17"),
         span,
     )
-    .with_hint("add parentheses, like `(7 remainder 2) plus 1`")
 }
 
 fn arithmetic_op(keyword: Keyword) -> Option<BinaryOp> {

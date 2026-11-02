@@ -1,6 +1,5 @@
-error: this line works something out but does nothing with it
- --> d20_bare_comparison.redstone:2:1
-  |
-2 | age is 5
-  | ^^^^^^^^
-  = to change `age`, write `age is_now …` (D14)
+stopped: d20_bare_comparison.redstone:2:1, line 2 column 1
+ 2 | age is 5
+   | ^^^^^^^^
+ what: this line works something out but does nothing with it
+ why:  a line shows something, makes or changes a variable, or starts a block

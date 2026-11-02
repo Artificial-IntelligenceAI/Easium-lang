@@ -78,7 +78,7 @@ impl Machine<'_> {
         let text = self.evaluate(value)?.show().ok_or_else(|| {
             Diagnostic::not_decided(
                 "showing a rational with no exact decimal, like 1/3",
-                "D7",
+                Some("D7"),
                 value.span,
             )
         })?;
@@ -158,13 +158,13 @@ impl Machine<'_> {
             .map_err(|error| output_failed(&error, prompt.span))?;
         let mut line = String::new();
         let read = self.input.read_line(&mut line).map_err(|error| {
-            Diagnostic::error(
+            Diagnostic::mistake(
                 format!("couldn't read what was typed: {error}"),
                 prompt.span,
             )
         })?;
         if read == 0 {
-            return Err(Diagnostic::error(
+            return Err(Diagnostic::mistake(
                 "`ask` found nothing more to read",
                 prompt.span,
             ));
@@ -193,7 +193,7 @@ fn int_arithmetic(
             if left < 0 || right < 0 {
                 return Err(Diagnostic::not_decided(
                     "`remainder` with a negative number",
-                    "D16",
+                    Some("D16"),
                     span,
                 ));
             }
@@ -201,7 +201,9 @@ fn int_arithmetic(
         }
         Arithmetic::DividedBy => return Err(type_bug(span)),
     };
-    result.ok_or_else(|| Diagnostic::not_decided("what happens when an int overflows", "D7", span))
+    result.ok_or_else(|| {
+        Diagnostic::not_decided("what happens when an int overflows", Some("D7"), span)
+    })
 }
 
 fn rational_arithmetic(
@@ -247,14 +249,14 @@ fn rational_error(error: RationalError, span: Span) -> Diagnostic {
         RationalError::DivisionByZero => division_by_zero(span),
         RationalError::TooBig => Diagnostic::not_decided(
             "what happens when a rational's parts outgrow 64 bits",
-            "D7",
+            Some("D7"),
             span,
         ),
     }
 }
 
 fn division_by_zero(span: Span) -> Diagnostic {
-    Diagnostic::not_decided("what dividing by zero does", "D16", span)
+    Diagnostic::not_decided("what dividing by zero does", Some("D16"), span)
 }
 
 fn type_bug(span: Span) -> Diagnostic {
@@ -262,5 +264,5 @@ fn type_bug(span: Span) -> Diagnostic {
 }
 
 fn output_failed(error: &std::io::Error, span: Span) -> Diagnostic {
-    Diagnostic::error(format!("couldn't write the output: {error}"), span)
+    Diagnostic::mistake(format!("couldn't write the output: {error}"), span)
 }

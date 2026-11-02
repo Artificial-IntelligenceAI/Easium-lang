@@ -1,5 +1,4 @@
-error: `whether` needs a comparison, but this is an int
- --> d28_whether_needs_comparison.redstone:1:14
-  |
-1 | show whether 5
-  |              ^
+stopped: d28_whether_needs_comparison.redstone:1:14, line 1 column 14
+ 1 | show whether 5
+   |              ^
+ what: `whether` needs a comparison, but this is an int

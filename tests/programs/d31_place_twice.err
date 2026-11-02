@@ -1,0 +1,4 @@
+stopped: d31_place_twice.redstone:2:34, line 2 column 33
+ 2 | show whether cafe is "café" and 5
+   |                                 ^
+ what: `and` needs true or false, but this is an int

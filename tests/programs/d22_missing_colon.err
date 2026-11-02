@@ -1,6 +1,5 @@
-error: this `if` needs a `:` here, but found the end of the line
- --> d22_missing_colon.redstone:1:8
-  |
-1 | if true
-  |        ^
-  = end the line with `:` (D22)
+stopped: d22_missing_colon.redstone:1:8, line 1 column 8
+ 1 | if true
+   |        ^
+ what: this `if` needs a `:` here, but found the end of the line
+ why:  a block's first line ends with `:`

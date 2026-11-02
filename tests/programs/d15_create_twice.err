@@ -1,6 +1,5 @@
-error: `age` already exists
- --> d15_create_twice.redstone:2:1
-  |
-2 | age = 19
-  | ^^^
-  = to change it, write `age is_now …` (D15)
+stopped: d15_create_twice.redstone:2:1, line 2 column 1
+ 2 | age = 19
+   | ^^^
+ what: `age` already exists
+ why:  `=` makes a new variable; `is_now` changes one that exists

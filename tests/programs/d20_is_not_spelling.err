@@ -1,6 +1,5 @@
-error: `is not` is one word
- --> d20_is_not_spelling.redstone:1:16
-  |
-1 | show whether 1 is not 2
-  |                ^^^^^^
-  = write `is_not` (D20)
+stopped: d20_is_not_spelling.redstone:1:16, line 1 column 16
+ 1 | show whether 1 is not 2
+   |                ^^^^^^
+ fix:  `is not` → `is_not`
+ why:  a keyword made of several words is joined with `_`

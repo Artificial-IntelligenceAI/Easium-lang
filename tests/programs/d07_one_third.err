@@ -1,6 +1,5 @@
-not decided yet: showing a rational with no exact decimal, like 1/3 (D7)
- --> d07_one_third.redstone:1:6
-  |
-1 | show 1 divided_by 3
-  |      ^^^^^^^^^^^^^^
-  = this part of Redstone's design is still open in DECISIONS.md
+not decided yet: d07_one_third.redstone:1:6, line 1 column 6
+ 1 | show 1 divided_by 3
+   |      ^^^^^^^^^^^^^^
+ what: showing a rational with no exact decimal, like 1/3
+ why:  this part of Redstone's design is still open (D7)

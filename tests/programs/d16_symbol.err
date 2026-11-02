@@ -1,6 +1,5 @@
-not decided yet: symbols such as `+` beside the words (D16)
- --> d16_symbol.redstone:1:8
-  |
-1 | show 1 + 2
-  |        ^
-  = write `plus`
+not decided yet: d16_symbol.redstone:1:8, line 1 column 8
+ 1 | show 1 + 2
+   |        ^
+ fix:  `+` → `plus`
+ why:  this part of Redstone's design is still open (D16)

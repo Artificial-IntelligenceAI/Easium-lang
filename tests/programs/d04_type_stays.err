@@ -1,6 +1,5 @@
-error: `age` is an int, so it can't become text
- --> d04_type_stays.redstone:2:12
-  |
-2 | age is_now "old"
-  |            ^^^^^
-  = a variable keeps the type of the value it was made with (D4)
+stopped: d04_type_stays.redstone:2:12, line 2 column 12
+ 2 | age is_now "old"
+   |            ^^^^^
+ what: `age` is an int, so it can't become text
+ why:  a variable keeps the type of the value it was made with

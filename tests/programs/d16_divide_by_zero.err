@@ -1,6 +1,5 @@
-not decided yet: what dividing by zero does (D16)
- --> d16_divide_by_zero.redstone:1:6
-  |
-1 | show 1 divided_by 0
-  |      ^^^^^^^^^^^^^^
-  = this part of Redstone's design is still open in DECISIONS.md
+not decided yet: d16_divide_by_zero.redstone:1:6, line 1 column 6
+ 1 | show 1 divided_by 0
+   |      ^^^^^^^^^^^^^^
+ what: what dividing by zero does
+ why:  this part of Redstone's design is still open (D16)

@@ -1,6 +1,5 @@
-not decided yet: what happens when an int overflows (D7)
- --> d07_int_overflow.redstone:2:6
-  |
-2 | show big plus 1
-  |      ^^^^^^^^^^
-  = this part of Redstone's design is still open in DECISIONS.md
+not decided yet: d07_int_overflow.redstone:2:6, line 2 column 6
+ 2 | show big plus 1
+   |      ^^^^^^^^^^
+ what: what happens when an int overflows
+ why:  this part of Redstone's design is still open (D7)
