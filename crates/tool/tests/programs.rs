@@ -109,7 +109,7 @@ fn every_program_behaves_as_expected() {
         let result = wait_at_most(child, Duration::from_secs(10));
         let Some(result) = result else {
             failures.push(format!(
-                "{name}: still running after 10 seconds, so it was stopped"
+                "{name} ({interpreter}): still running after 10 seconds, so it was stopped"
             ));
             continue;
         };
@@ -134,7 +134,7 @@ fn every_program_behaves_as_expected() {
         let expected_err = fs::read_to_string(&err_path).ok();
         if result.status.success() != expected_err.is_none() {
             failures.push(format!(
-                "{name}: expected it to {}",
+                "{name} ({interpreter}): expected it to {}",
                 if expected_err.is_none() {
                     "succeed"
                 } else {
@@ -144,12 +144,12 @@ fn every_program_behaves_as_expected() {
         }
         if stdout != expected_out {
             failures.push(format!(
-                "{name}: output\n--- expected\n{expected_out}--- got\n{stdout}"
+                "{name} ({interpreter}): output\n--- expected\n{expected_out}--- got\n{stdout}"
             ));
         }
         if stderr != expected_err.clone().unwrap_or_default() {
             failures.push(format!(
-                "{name}: error\n--- expected\n{}--- got\n{stderr}",
+                "{name} ({interpreter}): error\n--- expected\n{}--- got\n{stderr}",
                 expected_err.unwrap_or_default()
             ));
         }
