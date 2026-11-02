@@ -1,0 +1,313 @@
+# Redstone — design decisions
+
+The owner decides; redstone design claude proposes and records. Each entry says what was chosen and whose idea it was.
+Numbers are permanent: a decision is never renumbered. A changed decision gets a new entry that says which one it
+replaces.
+
+Identity: a friendly language, like Ruby.
+
+Syntax in code samples below is placeholder unless a decision says otherwise.
+
+---
+
+## D1 — Purpose (2026-11-02)
+
+Owner: "It's just for people who want to make things without getting into a whole new world, yk? But it would have
+some programmer things, if real programmers wanna use it."
+
+Redstone is for people who want to make things without first learning a whole new world. It also has some
+programmer features, for experienced programmers who want to use it.
+
+## D2 — What people make (2026-11-02)
+
+Owner: "Simple stuff. Like, a project to show off. If this gets typed, this happens. But it could do big stuff too."
+
+Redstone is aimed at small projects to show off, like "if this gets typed, this happens". It can still be used for
+big projects.
+
+## D3 — A JIT (2026-11-02)
+
+Owner: "I did think it would have a JIT too, maybe based on Cranelift or LLVM, or both."
+
+Redstone has a JIT.
+
+Backend, owner: "Both, in tiers." (yes to redstone design claude's proposal). Code starts in an interpreter; code
+that runs often is compiled with Cranelift; the hottest code is compiled with LLVM.
+
+## D4 — Types: lazy inference, exact types for programmers (2026-11-02)
+
+Owner: "most Redstone writers would probably not even know how to complain about lazy type inference. So, we could
+just do lazy, and let them deal with it, and give programmers their `i32` shit".
+
+Types are known before the program runs. A variable takes the type of the value it is given (lazy inference); there
+is no whole-program inference and no proving. Programmers can write exact types, such as `i32`.
+
+Open: what a function's parameters get when no type is written (functions are not being designed yet, owner: "We
+don't go fns yet"); which type an unwritten number such as `18` gets; the names of the exact types.
+
+## D5 — One thing per word (2026-11-02)
+
+Owner's sketch: `show "Is Adult" if age at_least 18`, and on `at_least`: "everything else adds another thing, `if`,
+the quotes, and stuff. `at_least` is just one thing, not two". Confirmed as a rule (owner: "Correct").
+
+A space always separates two things; one thing never contains a space, except text inside quotes. A keyword or name
+made of several words is joined with `_`: `at_least`, not `at least`.
+
+## D6 — Decimals are exact; binary floats on request (2026-11-02)
+
+Owner: "there could be a friendly way for them to get binary floats", then "Hm, yes" to redstone design claude's
+reading of it.
+
+An unwritten decimal such as `0.1` is exact: `0.1 + 0.2` is `0.3`. There is a friendly way to ask for a binary float
+instead; programmers can also write the exact type (D4).
+
+Open: the friendly spelling (proposed: `~0.1`, a type word such as `fast_number`, or `0.1 as_float`); whether a whole
+number such as `18` is the same type as a decimal.
+
+## D7 — Numbers: int, rational, float (2026-11-02)
+
+Owner: "Yeah, approved." (yes to redstone design claude's proposal, after measuring rationals against floats on an
+Apple M5: 40–85× slower when reduced after every operation, about as fast or ~6× when reduction waits until the
+numbers grow).
+
+- A whole number such as `18` is an int.
+- A decimal such as `0.1` is a rational, an exact fraction (1/10), as Raku's `Rat`. `0.1 + 0.2` is `0.3`;
+  `1 / 3 * 3` is `1`. This settles D6's "exact".
+- `7 / 2` is the rational `3.5`, never `3`.
+- A binary float comes from D6's friendly spelling (still open); programmers can write exact types such as `i32`
+  and `f64` (D4).
+
+Open: what happens when a rational's parts outgrow 64 bits (a bigint, or decay to a float as Raku's `Rat` does);
+what happens when an int overflows.
+
+## D8 — Host language: Rust (2026-11-02)
+
+Owner: "Yup" (yes to redstone design claude's proposal). Cranelift's only first-class API is Rust, and moving a
+running function between tiers (D3) is easier when every tier shares one language and one value layout.
+
+- Front end (parser, lazy type checker, errors), interpreter, Cranelift tier, LLVM tier, and the runtime
+  (rationals, bigints, text, memory) are written in Rust.
+- LLVM is reached as in CyborgPL: `inkwell` first, `llvm-sys` only where inkwell lacks a call, a small C++ wrapper
+  only where the C API lacks a feature.
+
+Open: whether the standard library is written in Redstone or in Rust; which bigint library (`malachite`,
+`num-bigint`, or `rug`/GMP, which is LGPL).
+
+## D9 — Built-ins and packages, Cargo style (2026-11-02)
+
+Owner, asked whether Redstone needs a standard library: "Do we really need a stdlib?", then "Maybe Cargo style?",
+then "Yes" to redstone design claude's reading of it.
+
+There is no standard library to import from. Redstone has a small set of built-ins that are always there (such as
+`show`), living in the Rust runtime (D8). Everything else comes as packages from a registry, through one tool, as
+Rust does with Cargo and crates.io. This replaces D8's open question about the standard library's language.
+
+Open (proposed by redstone design claude, not ruled): a single file runs with no manifest; the manifest appears with
+the first package added, or packages are declared at the top of the file; the one tool runs, adds, builds and
+publishes. Also open: the list of built-ins; the tool's name; the file extension (not `.rs`, which is Rust's); the
+registry.
+
+## D10 — A manifest, always (2026-11-02)
+
+Owner: "Manifest always, but we'll make it friendly". Replaces D9's proposal that a single file runs with no
+manifest.
+
+Every Redstone project has a manifest, even one with a single file and no packages. It is made friendly.
+
+Open: how it is made friendly; who creates it; its name and format.
+
+## D11 — Who creates the manifest: both (2026-11-02)
+
+Owner: "It's both, bro" (to redstone design claude's two options).
+
+`redstone new <name>` creates a project with its manifest, as `cargo new` does; `redstone run` also creates the
+manifest when it is missing. The tool's name (`redstone`) is a placeholder (D9).
+
+## D12 — A variable is created by assigning it (2026-11-02)
+
+Owner, asked how a variable is created, answered with:
+
+```
+age = 18
+show "Is adult" if age equal 18
+```
+
+A variable is created by assigning it, with no keyword: `age = 18`. With D4, a later `age = "hi"` is caught before
+the program runs.
+
+Open (proposed by redstone design claude, not ruled): the checker catches a misspelt assignment ("`agee` is set but
+never used"); a programmer type is written `age: i32 = 18`. Also from the sketch, not yet confirmed: `equal` is the
+equality comparison.
+
+## D13 — `equal` compares; `=` never does (2026-11-02)
+
+Owner: "Yup" (to redstone design claude's reading of D12's sketch).
+
+`equal` is the equality comparison: `age equal 18`. `=` never compares, so there is no `==`.
+
+## D14 — `is_now` changes a variable; `plus` adds (2026-11-02)
+
+Owner's sketch, "for changing the variable":
+
+```
+age is_now age plus 1
+```
+
+`=` creates a variable (D12); `is_now` changes one that exists. `plus` is addition.
+
+Open (proposed by redstone design claude, not ruled): `=` on a variable that already exists is an error ("`age`
+already exists; use `is_now` to change it"), and `is_now` on one that does not exist is an error, which catches a
+misspelt name and replaces D12's "set but never used" proposal. Also open: the other arithmetic words; whether
+symbols such as `+` exist (as with `>=`, owner: "we'll see").
+
+## D15 — `=` and `is_now` catch misspelt names (2026-11-02)
+
+Owner: "Yes" (to D14's open proposal by redstone design claude).
+
+`=` on a variable that already exists is an error ("`age` already exists; use `is_now` to change it"). `is_now` on a
+variable that does not exist is an error ("there's no `agee`. Did you mean `age`?"). Error wording is placeholder.
+
+## D16 — Arithmetic words (2026-11-02)
+
+Owner: "Yes, and to the arith too. It's `remainder`" (redstone design claude proposed `-` `minus`, `*` `times`,
+`/` `divided_by`, and `mod` or `remainder` for `%`).
+
+| Operation | Word |
+|---|---|
+| add | `plus` (D14) |
+| subtract | `minus` |
+| multiply | `times` |
+| divide | `divided_by` (with D7, `7 divided_by 2` is the rational `3.5`) |
+| remainder | `remainder` |
+
+Open: precedence; whether symbols such as `+` also exist.
+
+## D17 — Maths precedence, `()` to group (2026-11-02)
+
+Owner: "Follow maths precedence, and () grouping when needed".
+
+Arithmetic words follow school maths: `times` and `divided_by` bind tighter than `plus` and `minus`, so
+`2 plus 3 times 4` is `14`. Parentheses group: `(2 plus 3) times 4` is `20`.
+
+Open (proposed by redstone design claude, not ruled): `remainder` binds like `times` and `divided_by`, as in most
+languages; comparisons (`equal`, `at_least`) bind looser than all arithmetic; parentheses, like quotes (D5), need
+no spaces around them.
+
+## D18 — Comparison words (2026-11-02)
+
+Owner: "Correct. `more_than` is `greater_than`" (to redstone design claude's proposed table).
+
+| Comparison | Word |
+|---|---|
+| equal | `equal` (D13) |
+| greater or equal | `at_least` |
+| less or equal | `at_most` |
+| greater | `greater_than` |
+| less | `less_than` |
+| not equal | `not_equal` |
+
+## D19 — `true` and `false` (2026-11-02)
+
+Owner: "`true`/`false`" (redstone design claude offered `true`/`false` or `yes`/`no`).
+
+The booleans are `true` and `false`.
+
+Open: the logic words (proposed: `and`, `or`, `not`).
+
+## D20 — `is` and `is_not` (2026-11-02)
+
+Owner asked: "should we change `equal` to `is` and `isn't` for `not_equal`?"; redstone design claude proposed `is`
+and `is_not` (D5's `_` rule; no apostrophe for autocorrect to turn into `’`); owner: "Yes".
+
+`is` is the equality comparison and `is_not` the inequality, replacing D13's `equal` and D18's `not_equal`:
+`show "Is adult" if age is 18`.
+
+Open (proposed by redstone design claude, not ruled): a comparison standing alone as a statement is an error
+(`age is 5` on its own line: "did you mean `age is_now 5`?").
+
+## D21 — `and`, `or`, `not` (2026-11-02)
+
+Owner: "Yes" (to redstone design claude's proposal). The logic words are `and`, `or` and `not`:
+`show "Teen" if age at_least 13 and age less_than 20`. This settles D19's open question.
+
+## D22 — Block `if`: colons, `end of if` (2026-11-02)
+
+Owner, asked how blocks end (redstone design claude proposed Ruby's `end` or Python's indentation):
+
+```
+if age at_least 18:
+show "Adult"
+show "Can vote"
+else:
+show "Not yet"
+end of if
+```
+
+A block `if` has a colon after its condition and after `else`, and closes with `end of if`.
+
+Open: whether indentation is ignored (the sketch has none); how `else if` is spelt; whether other blocks close the
+same way (`end of while` and so on).
+
+## D23 — Indentation is ignored; a formatter indents (2026-11-02)
+
+Owner: "What's the problem with not spamming the space key? I mean, we could just make a formatter".
+
+Spaces at the start of a line mean nothing; blocks are marked only by their colons and `end of …` (D22). Redstone
+has a formatter that indents code.
+
+Open: whether the formatter is part of the one tool (D9).
+
+## D24 — `else_if` (2026-11-02)
+
+Owner: "Yes" (to redstone design claude's recommendation; first proposed `else if`, then `else_if` on reflection).
+
+```
+if age at_least 18:
+show "Adult"
+else_if age at_least 13:
+show "Teen"
+else:
+show "Kid"
+end of if
+```
+
+`else_if` is one keyword (D5's `_` rule): it continues the same `if`, so the block still closes with one `end of if`.
+`else if` as two words would read as `else` followed by a new `if` needing its own `end of if` (D22).
+
+## D25 — `end_of`, not `end of` (2026-11-02)
+
+Owner: "Wait, `end of` should be `end_of`. I mean, you can't swap that `of` for something else".
+
+A block closes with `end_of` followed by the block's name: `end_of if`. `end` and `of` never appear apart, so by D5
+they are one keyword; the block's name after it is a second thing. Replaces `end of if` in D22, D23 and D24.
+
+```
+if age at_least 18:
+show "Adult"
+else_if age at_least 13:
+show "Teen"
+else:
+show "Kid"
+end_of if
+```
+
+## D26 — `ask` reads input (2026-11-02)
+
+Owner: "`ask`" (redstone design claude proposed `ask`, `input` or `read`).
+
+`ask` shows a prompt and waits for a line to be typed; what comes back is text:
+
+```
+name = ask "What's your name?"
+show "Hi " plus name
+```
+
+Open: getting a number from `ask` (proposed: `ask_number`, or a conversion); whether `plus` joins text, as in the
+example.
+
+## D27 — Implementation rules (2026-11-02)
+
+Owner: "Yup. Pedantic. Auto commit & push" (to redstone design claude's eleven proposed rules; clippy's pedantic
+level chosen over its default; commits and pushes happen without asking, instead of only when the owner says so).
+
+The rules are in `IMPLEMENTATION-RULES.md`.
