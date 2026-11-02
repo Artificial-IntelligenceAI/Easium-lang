@@ -396,19 +396,8 @@ impl Parser<'_> {
                     .with_hint("write `is_not` (D20)"),
             );
         }
-        let (right, right_shape) = self.additive()?;
-        for (side, shape) in [(&left, left_shape), (&right, right_shape)] {
-            if matches!(shape, Shape::Arithmetic { .. }) {
-                return Err(Diagnostic::not_decided(
-                    "arithmetic beside a comparison without parentheses",
-                    "D17",
-                    side.span,
-                )
-                .with_hint(
-                    "add parentheses around the arithmetic, like `(age plus 1) at_least 18`",
-                ));
-            }
-        }
+        // D30: comparisons bind looser than all arithmetic, so the arithmetic on each side comes first.
+        let (right, _) = self.additive()?;
         if self.peek_keyword().and_then(comparison_op).is_some() {
             return Err(
                 Diagnostic::not_decided("chaining comparisons", "D18", self.peek().span)

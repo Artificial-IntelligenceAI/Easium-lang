@@ -299,8 +299,12 @@ impl Checker {
                 let ty = operands.comparison(comparison)?;
                 // D29
                 let (left, right) = match (left_type, right_type) {
-                    (Type::Int, Type::Rational) => (to_rational(Box::new(checked_left)), checked_right),
-                    (Type::Rational, Type::Int) => (checked_left, to_rational(Box::new(checked_right))),
+                    (Type::Int, Type::Rational) => {
+                        (to_rational(Box::new(checked_left)), checked_right)
+                    }
+                    (Type::Rational, Type::Int) => {
+                        (checked_left, to_rational(Box::new(checked_right)))
+                    }
                     _ => (checked_left, checked_right),
                 };
                 Ok((

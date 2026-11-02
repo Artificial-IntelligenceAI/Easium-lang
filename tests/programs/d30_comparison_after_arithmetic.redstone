@@ -1,0 +1,5 @@
+age = 17
+show "Adult" if age plus 1 at_least 18
+n = 10
+show "Even" if n remainder 2 is 0
+show whether 2 times 3 greater_than 5 and 1 plus 1 is 2

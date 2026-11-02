@@ -331,3 +331,9 @@ arithmetic already did, read from D7's example `1 / 3 * 3` being `1`).
 
 Where an int meets a rational, in arithmetic or a comparison, the int counts as a rational: `1 plus 0.5` is `1.5`;
 `half greater_than 3` compares 3.5 with 3; `1 is 1.0` is `true`. `remainder` on rationals stays open (D16).
+
+## D30 — Comparisons bind looser than arithmetic (2026-11-02)
+
+Owner: "yes" (to redstone design claude's question; one of D17's open proposals). As in maths, every comparison
+binds looser than all arithmetic, `remainder` included: `age plus 1 at_least 18` means `(age plus 1) at_least 18`,
+and `n remainder 2 is 0` means `(n remainder 2) is 0`.

@@ -1,6 +1,0 @@
-not decided yet: arithmetic beside a comparison without parentheses (D17)
- --> d17_comparison_mixing.redstone:2:17
-  |
-2 | show "Adult" if age plus 1 at_least 18
-  |                 ^^^^^^^^^^
-  = add parentheses around the arithmetic, like `(age plus 1) at_least 18`
