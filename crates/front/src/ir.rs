@@ -100,6 +100,33 @@ pub enum Stmt {
         /// Shown only when this is true.
         condition: Option<Expr>,
     },
+    /// Runs a block a number of times (D39).
+    RepeatTimes {
+        /// How many times.
+        count: Expr,
+        /// The block.
+        body: Vec<Stmt>,
+    },
+    /// Runs a block until a test, checked before each round, is true (D39).
+    RepeatUntil {
+        /// The test.
+        test: Expr,
+        /// The block.
+        body: Vec<Stmt>,
+    },
+    /// Runs a block for each item of an in-order table, up to a stop (D39).
+    ForItems {
+        /// The table.
+        table: Expr,
+        /// Where to stop.
+        stop: Stop,
+        /// Whether the block runs for the item where it stops.
+        inclusive: bool,
+        /// The slot holding `current_item`.
+        current_item: usize,
+        /// The block.
+        body: Vec<Stmt>,
+    },
     /// Changes one item of the table in a slot (D35).
     ChangeItem {
         /// The slot holding the table.

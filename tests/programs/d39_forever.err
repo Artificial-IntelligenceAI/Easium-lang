@@ -1,0 +1,5 @@
+not decided yet: d39_forever.redstone:1:8, line 1 column 8
+ 1 | repeat forever:
+   |        ^^^^^^^
+ what: `repeat forever`
+ why:  Redstone's design doesn't cover this yet

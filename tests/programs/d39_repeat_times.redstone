@@ -1,0 +1,9 @@
+repeat 3 times:
+    show "Hip hip hooray"
+end_of repeat
+n = 0
+repeat n times:
+    show "never"
+end_of repeat
+repeat = 2
+show repeat

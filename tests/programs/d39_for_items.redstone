@@ -1,0 +1,24 @@
+scores = 90, 65, 70, 65
+total = 0
+for items in scores until last_item:
+    total is_now total plus current_item
+end_of for
+show total
+for items in scores until_before value 70:
+    show "Passed" if current_item at_least 70
+    show "Try again" if current_item less_than 70
+end_of for
+for items in scores until current_item less_than 70:
+    show current_item
+end_of for
+for items in scores until_before position 3:
+    show current_item
+end_of for
+row_1 = 1, 2
+row_2 = 3, 4
+grid = row_1, row_2
+for items in grid until last_item:
+    for items in current_item until last_item:
+        show current_item
+    end_of for
+end_of for

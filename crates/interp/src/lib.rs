@@ -80,6 +80,35 @@ impl Machine<'_> {
                 }
                 self.show_items(table, stop, *inclusive)
             }
+            Stmt::RepeatTimes { count, body } => {
+                let Value::Int(times) = self.evaluate(count)? else {
+                    return Err(type_bug(count.span));
+                };
+                if times < 0 {
+                    return Err(Diagnostic::not_decided(
+                        "repeating a negative number of times",
+                        Some("D39"),
+                        count.span,
+                    ));
+                }
+                for _ in 0..times {
+                    self.block(body)?;
+                }
+                Ok(())
+            }
+            Stmt::RepeatUntil { test, body } => {
+                while !self.boolean(test)? {
+                    self.block(body)?;
+                }
+                Ok(())
+            }
+            Stmt::ForItems {
+                table,
+                stop,
+                inclusive,
+                current_item,
+                body,
+            } => self.for_items(table, stop, *inclusive, *current_item, body),
             Stmt::If {
                 branches,
                 otherwise,
@@ -155,6 +184,82 @@ impl Machine<'_> {
             )
         })?;
         writeln!(self.output, "{text}").map_err(|error| output_failed(&error, span))
+    }
+
+    // D39: the table is read once, at the start; a value or test stop is checked as each item comes up.
+    fn for_items(
+        &mut self,
+        table: &Expr,
+        stop: &Stop,
+        inclusive: bool,
+        current_item: usize,
+        body: &[Stmt],
+    ) -> Result<(), Diagnostic> {
+        let Value::Table(contents) = self.evaluate(table)? else {
+            return Err(type_bug(table.span));
+        };
+        let Table::InOrder(values) = &*contents else {
+            return Err(type_bug(table.span));
+        };
+        let count = match stop {
+            Stop::LastItem => Some(values.len()),
+            Stop::Position(position) => {
+                let Value::Int(index) = self.evaluate(position)? else {
+                    return Err(type_bug(position.span));
+                };
+                let stop_index = zero_based(index, Counting::Position)
+                    .filter(|zero_based| *zero_based < values.len())
+                    .ok_or_else(|| {
+                        missing_index(index, Counting::Position, values.len(), position.span)
+                    })?;
+                Some(stop_index + 1)
+            }
+            Stop::Value(_) | Stop::Test { .. } => None,
+        };
+        if let Some(count) = count {
+            let count = if inclusive {
+                count
+            } else {
+                count.saturating_sub(1)
+            };
+            for item in values.iter().take(count) {
+                self.set_slot(current_item, item.clone(), table.span)?;
+                self.block(body)?;
+            }
+            return Ok(());
+        }
+        for item in values {
+            self.set_slot(current_item, item.clone(), table.span)?;
+            let reached = match stop {
+                Stop::Value(value) => *item == self.evaluate(value)?,
+                Stop::Test { test, .. } => self.boolean(test)?,
+                Stop::LastItem | Stop::Position(_) => false,
+            };
+            if reached && !inclusive {
+                return Ok(());
+            }
+            self.block(body)?;
+            if reached {
+                return Ok(());
+            }
+        }
+        let span = match stop {
+            Stop::Value(expression)
+            | Stop::Test {
+                test: expression, ..
+            } => expression.span,
+            Stop::LastItem | Stop::Position(_) => table.span,
+        };
+        Err(never_reached(span))
+    }
+
+    fn set_slot(&mut self, slot: usize, value: Value, span: Span) -> Result<(), Diagnostic> {
+        let target = self
+            .slots
+            .get_mut(slot)
+            .ok_or_else(|| Diagnostic::bug("a variable has no slot", span))?;
+        *target = value;
+        Ok(())
     }
 
     // D38: works out where to stop first, then shows the items before it, one per line.

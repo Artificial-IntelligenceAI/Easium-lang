@@ -124,6 +124,14 @@ impl Checker {
                     condition,
                 })
             }
+            ast::Stmt::RepeatTimes { count, body } => self.repeat_times(count, body),
+            ast::Stmt::RepeatUntil { test, body } => self.repeat_until(test, body),
+            ast::Stmt::ForItems {
+                table,
+                stop,
+                inclusive,
+                body,
+            } => self.for_items(table, stop, *inclusive, body),
             ast::Stmt::If {
                 branches,
                 otherwise,
@@ -320,17 +328,7 @@ impl Checker {
             }
             ast::Stop::Test(test) => {
                 // `current_item` holds each item in turn, in a scope of its own.
-                let current_item = self.slot_count;
-                self.slot_count += 1;
-                let mut scope = HashMap::new();
-                scope.insert(
-                    "current_item".to_owned(),
-                    Variable {
-                        slot: current_item,
-                        ty: element.clone(),
-                    },
-                );
-                self.scopes.push(scope);
+                let current_item = self.push_current_item(element);
                 let checked = self.expression(test);
                 self.scopes.pop();
                 let (checked, ty) = checked?;
@@ -349,6 +347,131 @@ impl Checker {
                 })
             }
         }
+    }
+
+    fn push_current_item(&mut self, element: &Type) -> usize {
+        let slot = self.slot_count;
+        self.slot_count += 1;
+        let mut scope = HashMap::new();
+        scope.insert(
+            "current_item".to_owned(),
+            Variable {
+                slot,
+                ty: element.clone(),
+            },
+        );
+        self.scopes.push(scope);
+        slot
+    }
+
+    // D39
+    fn repeat_times(
+        &mut self,
+        count: &ast::Expr,
+        body: &[ast::Stmt],
+    ) -> Result<ir::Stmt, Diagnostic> {
+        let (checked, ty) = self.expression(count)?;
+        if ty != Type::Int {
+            return Err(Diagnostic::mistake(
+                format!("a `repeat` count is an int, but this is {}", ty.described()),
+                count.span,
+            ));
+        }
+        Ok(ir::Stmt::RepeatTimes {
+            count: checked,
+            body: self.nested_block(body)?,
+        })
+    }
+
+    fn repeat_until(
+        &mut self,
+        test: &ast::Expr,
+        body: &[ast::Stmt],
+    ) -> Result<ir::Stmt, Diagnostic> {
+        let (checked, ty) = self.expression(test)?;
+        if ty != Type::Boolean {
+            return Err(Diagnostic::mistake(
+                format!(
+                    "`repeat until` needs a test that's true or false, but this is {}",
+                    ty.described()
+                ),
+                test.span,
+            ));
+        }
+        Ok(ir::Stmt::RepeatUntil {
+            test: checked,
+            body: self.nested_block(body)?,
+        })
+    }
+
+    fn for_items(
+        &mut self,
+        table: &ast::Expr,
+        stop: &ast::Stop,
+        inclusive: bool,
+        body: &[ast::Stmt],
+    ) -> Result<ir::Stmt, Diagnostic> {
+        let (table_ir, ty) = self.expression(table)?;
+        let element = match ty {
+            Type::InOrder(element) => (*element).clone(),
+            Type::Keyed(..) => {
+                return Err(Diagnostic::not_decided(
+                    "going through a keyed table",
+                    Some("D39"),
+                    table.span,
+                ));
+            }
+            other => {
+                return Err(Diagnostic::mistake(
+                    format!(
+                        "`for items in` needs an in-order table, but this is {}",
+                        other.described()
+                    ),
+                    table.span,
+                ));
+            }
+        };
+        // `current_item` holds each item in turn, in the stop's test and the block.
+        let current_item = self.push_current_item(&element);
+        let result = self.for_items_in_scope(stop, &element, current_item, body);
+        self.scopes.pop();
+        let (stop, body) = result?;
+        Ok(ir::Stmt::ForItems {
+            table: table_ir,
+            stop,
+            inclusive,
+            current_item,
+            body,
+        })
+    }
+
+    fn for_items_in_scope(
+        &mut self,
+        stop: &ast::Stop,
+        element: &Type,
+        current_item: usize,
+        body: &[ast::Stmt],
+    ) -> Result<(ir::Stop, Vec<ir::Stmt>), Diagnostic> {
+        let stop = match stop {
+            ast::Stop::Test(test) => {
+                let (checked, ty) = self.expression(test)?;
+                if ty != Type::Boolean {
+                    return Err(Diagnostic::mistake(
+                        format!(
+                            "a stop's test needs true or false, but this is {}",
+                            ty.described()
+                        ),
+                        test.span,
+                    ));
+                }
+                ir::Stop::Test {
+                    test: checked,
+                    current_item,
+                }
+            }
+            other => self.stop(other, element)?,
+        };
+        Ok((stop, self.nested_block(body)?))
     }
 
     fn condition(&mut self, condition: &ast::Expr) -> Result<ir::Expr, Diagnostic> {

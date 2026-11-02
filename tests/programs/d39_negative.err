@@ -1,0 +1,5 @@
+not decided yet: d39_negative.redstone:2:8, line 2 column 8
+ 2 | repeat n times:
+   |        ^
+ what: repeating a negative number of times
+ why:  this part of Redstone's design is still open (D39)

@@ -63,6 +63,31 @@ pub enum Stmt {
         /// Shown only when this is true.
         condition: Option<Expr>,
     },
+    /// `repeat 3 times:` … `end_of repeat` (D39).
+    RepeatTimes {
+        /// How many times, an int.
+        count: Expr,
+        /// The block.
+        body: Vec<Stmt>,
+    },
+    /// `repeat until lives is 0:` … `end_of repeat`: checks before each round (D39).
+    RepeatUntil {
+        /// Stops when this is true.
+        test: Expr,
+        /// The block.
+        body: Vec<Stmt>,
+    },
+    /// `for items in scores until …:` … `end_of for`, with `current_item` in the block (D39).
+    ForItems {
+        /// The table.
+        table: Expr,
+        /// Where to stop.
+        stop: Stop,
+        /// `until` (true) runs the block for the item where it stops; `until_before` (false) doesn't.
+        inclusive: bool,
+        /// The block.
+        body: Vec<Stmt>,
+    },
     /// A block `if`, closed by `end_of if` (D22, D24, D25).
     If {
         /// The `if` and each `else_if`, in order.

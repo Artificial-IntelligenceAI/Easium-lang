@@ -136,6 +136,23 @@ impl Parser<'_> {
         self.advance();
         self.advance();
         let table = self.primary()?;
+        let (inclusive, stop) = self.until("`show items in`")?;
+        let condition = if self.peek_keyword() == Some(Keyword::If) {
+            self.advance();
+            Some(self.expression()?)
+        } else {
+            None
+        };
+        Ok(Stmt::ShowItems {
+            table,
+            stop,
+            inclusive,
+            condition,
+        })
+    }
+
+    // D38, D39: `until` or `until_before`, then the stop.
+    fn until(&mut self, form: &str) -> Result<(bool, Stop), Diagnostic> {
         let inclusive = if self.next_word_is("until") {
             true
         } else if self.next_word_is("until_before") {
@@ -149,7 +166,7 @@ impl Parser<'_> {
                 ),
                 token.span,
             )
-            .because("`show items in` says where to stop"));
+            .because(format!("{form} says where to stop")));
         };
         self.advance();
         let stop_token = self.peek().clone();
@@ -180,22 +197,95 @@ impl Parser<'_> {
             )
             .because("a stop is `last_item`, `position`, `value`, or a test on `current_item`"));
         };
-        let condition = if self.peek_keyword() == Some(Keyword::If) {
+        Ok((inclusive, stop))
+    }
+
+    // D39: `repeat 3 times:` and `repeat until …:`, closed by `end_of repeat`.
+    fn repeat(&mut self, repeat_span: Span) -> Result<Stmt, Diagnostic> {
+        self.advance();
+        if self.next_word_is("until") {
             self.advance();
-            Some(self.expression()?)
-        } else {
-            None
-        };
-        Ok(Stmt::ShowItems {
+            let test = self.expression()?;
+            let body = self.loop_block("repeat", repeat_span)?;
+            return Ok(Stmt::RepeatUntil { test, body });
+        }
+        if self.next_word_is("forever") {
+            return Err(Diagnostic::not_decided(
+                "`repeat forever`",
+                None,
+                self.peek().span,
+            ));
+        }
+        let (count, _) = self.additive()?;
+        if self.peek_keyword() != Some(Keyword::Times) {
+            let token = self.peek().clone();
+            return Err(Diagnostic::mistake(
+                format!(
+                    "expected `times` after the count, but found {}",
+                    describe(&token.kind)
+                ),
+                token.span,
+            )
+            .because("a counted loop is `repeat <count> times:`"));
+        }
+        self.advance();
+        let body = self.loop_block("repeat", repeat_span)?;
+        Ok(Stmt::RepeatTimes { count, body })
+    }
+
+    // D39: `for items in scores until …:`, closed by `end_of for`.
+    fn for_items(&mut self, for_span: Span) -> Result<Stmt, Diagnostic> {
+        self.advance();
+        self.advance();
+        self.advance();
+        let table = self.primary()?;
+        let (inclusive, stop) = self.until("`for items in`")?;
+        let body = self.loop_block("for", for_span)?;
+        Ok(Stmt::ForItems {
             table,
             stop,
             inclusive,
-            condition,
+            body,
         })
+    }
+
+    fn loop_block(&mut self, word: &str, opener_span: Span) -> Result<Vec<Stmt>, Diagnostic> {
+        self.block_start(word)?;
+        let body = self.block_body()?;
+        let token = self.peek().clone();
+        match token.kind {
+            TokenKind::Keyword(Keyword::EndOf) => {
+                self.advance();
+                self.end_of(token.span, word)?;
+                Ok(body)
+            }
+            TokenKind::Keyword(keyword @ (Keyword::ElseIf | Keyword::Else)) => {
+                Err(Diagnostic::mistake(
+                    format!("this `{}` has no `if` to belong to", keyword.as_str()),
+                    token.span,
+                ))
+            }
+            _ => Err(Diagnostic::mistake(
+                format!("this `{word}` has no `end_of {word}`"),
+                opener_span,
+            )
+            .because(format!("every `{word}` block closes with `end_of {word}`"))),
+        }
     }
 
     fn name_statement(&mut self, name: &str, name_span: Span) -> Result<Stmt, Diagnostic> {
         let next = self.peek_at(1).clone();
+        let assigns = matches!(
+            next.kind,
+            TokenKind::Equals | TokenKind::Keyword(Keyword::IsNow)
+        );
+        if name == "repeat" && !assigns {
+            return self.repeat(name_span);
+        }
+        let word_at = |offset: usize, word: &str| matches!(&self.peek_at(offset).kind, TokenKind::Name(found) if found == word);
+        if name == "for" && word_at(1, "items") && word_at(2, "in") {
+            return self.for_items(name_span);
+        }
         match &next.kind {
             // D12
             TokenKind::Equals => {
@@ -381,7 +471,7 @@ impl Parser<'_> {
                 // D25
                 TokenKind::Keyword(Keyword::EndOf) => {
                     self.advance();
-                    self.end_of(token.span, Keyword::If)?;
+                    self.end_of(token.span, "if")?;
                     return Ok(Stmt::If {
                         branches,
                         otherwise,
@@ -397,14 +487,10 @@ impl Parser<'_> {
     }
 
     // D25: `end_of` and the name of the block it closes.
-    fn end_of(&mut self, end_of_span: Span, block: Keyword) -> Result<(), Diagnostic> {
+    fn end_of(&mut self, end_of_span: Span, block: &str) -> Result<(), Diagnostic> {
         let token = self.peek().clone();
-        let expected = format!("end_of {}", block.as_str());
+        let expected = format!("end_of {block}");
         let closing = match &token.kind {
-            TokenKind::Keyword(keyword) if *keyword == block => {
-                self.advance();
-                return Ok(());
-            }
             TokenKind::Keyword(keyword) => keyword.as_str().to_owned(),
             TokenKind::Name(name) => name.clone(),
             _ => {
@@ -415,10 +501,14 @@ impl Parser<'_> {
                 .fix("end_of", &expected));
             }
         };
-        let described = if block == Keyword::If {
-            "an `if`"
+        if closing == block {
+            self.advance();
+            return Ok(());
+        }
+        let described = if block == "if" {
+            "an `if`".to_owned()
         } else {
-            "a `table`"
+            format!("a `{block}`")
         };
         Err(Diagnostic::mistake(
             format!("`end_of {closing}` can't close this block: it's {described}"),
@@ -471,7 +561,7 @@ impl Parser<'_> {
                 TokenKind::Keyword(Keyword::EndOf) => {
                     self.advance();
                     let closing_span = self.peek().span;
-                    self.end_of(token.span, Keyword::Table)?;
+                    self.end_of(token.span, "table")?;
                     if entries.is_empty() {
                         return Err(Diagnostic::not_decided(
                             "an empty table",
@@ -646,6 +736,10 @@ impl Parser<'_> {
         while let Some(keyword @ (Keyword::Times | Keyword::DividedBy | Keyword::Remainder)) =
             self.peek_keyword()
         {
+            // D39: `repeat 3 times:` — `times` right before the colon ends the count.
+            if keyword == Keyword::Times && self.peek_at(1).kind == TokenKind::Colon {
+                break;
+            }
             let op_span = self.peek().span;
             self.advance();
             let (right, _) = self.unary()?;

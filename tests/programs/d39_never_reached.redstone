@@ -1,0 +1,4 @@
+scores = 1, 2
+for items in scores until value 5:
+show current_item
+end_of for

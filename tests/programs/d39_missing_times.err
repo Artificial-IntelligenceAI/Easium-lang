@@ -1,0 +1,5 @@
+stopped: d39_missing_times.redstone:1:9, line 1 column 9
+ 1 | repeat 3:
+   |         ^
+ what: expected `times` after the count, but found `:`
+ why:  a counted loop is `repeat <count> times:`

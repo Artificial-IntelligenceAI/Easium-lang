@@ -496,3 +496,33 @@ show items in scores until_before current_item less_than 70   # 90
 Open: a stop that is never reached (a value that never appears, a test never true); whether `items in … until` is
 only a `show` form or works anywhere a table can (`first_two = items in scores until position 2`); keyed tables;
 stopping at an offset; loops, which this does not replace.
+
+## D39 — Loops: `repeat … times`, `repeat until`, `for items in` (2026-11-02)
+
+Owner: "Maybe the loop would be `for` in front?" (of D38's form), "Or maybe a more general loop outside of `show`?",
+then "yes" to redstone design claude's set.
+
+```
+repeat 3 times:
+    show "Hip hip hooray"
+end_of repeat
+
+repeat until lives is 0:
+    …
+end_of repeat
+
+for items in scores until last_item:
+    total is_now total plus current_item
+end_of for
+```
+
+- **`repeat <count> times:`** runs its block that many times.
+- **`repeat until <test>:`** checks the test before each round and stops when it is true; it also serves as "keep
+  going while…".
+- **`for items in <table> until <stop>:`** goes through an in-order table with D38's stops (`last_item`, `position`,
+  `value`, a test on `current_item`) and `until`/`until_before`; `current_item` holds the item in the body.
+- Each closes with `end_of repeat` or `end_of for` (D25), with a colon after its first line (D22).
+
+Open: leaving a loop early; a count variable for `repeat … times`; naming the item for nested `for` loops (an inner
+`current_item` hides the outer); repeating a negative number of times; a `for` whose stop is never reached; a
+trailing `if` on lines other than `show` (D20).

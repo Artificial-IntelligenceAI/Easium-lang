@@ -1,0 +1,5 @@
+stopped: d39_missing_end.redstone:2:1, line 2 column 1
+ 2 | for items in scores until last_item:
+   | ^^^
+ what: this `for` has no `end_of for`
+ why:  every `for` block closes with `end_of for`

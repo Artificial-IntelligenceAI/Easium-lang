@@ -1,0 +1,6 @@
+ages = table:
+"Ada": 36
+end_of table
+for items in ages until last_item:
+show 1
+end_of for

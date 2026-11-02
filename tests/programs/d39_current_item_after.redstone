@@ -1,0 +1,5 @@
+scores = 1, 2
+for items in scores until last_item:
+show current_item
+end_of for
+show current_item

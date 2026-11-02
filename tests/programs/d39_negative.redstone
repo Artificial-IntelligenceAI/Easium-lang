@@ -1,0 +1,4 @@
+n = 0 minus 1
+repeat n times:
+show 1
+end_of repeat

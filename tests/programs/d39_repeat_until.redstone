@@ -1,0 +1,12 @@
+lives = 3
+repeat until lives is 0:
+    guess = ask "Guess: "
+    if guess is_not "redstone":
+        lives is_now lives minus 1
+        show "Wrong"
+    else:
+        show "Right!"
+        lives is_now 0
+    end_of if
+end_of repeat
+show "Done"
