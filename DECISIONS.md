@@ -362,3 +362,21 @@ stopped: hello.redstone:2:1, line 2 column 1
 ```
 
 Replaces implementation rule 8's "a suggestion where one exists".
+
+## D32 — Tables, Lua's improved (2026-11-02)
+
+Owner, asked whether lists and maps should be separate: "I mean, why don't we improve it?" (Lua's tables), then "yes"
+to redstone design claude's proposal.
+
+Redstone has tables: one name and one way of writing them, as in Lua, with Lua's traps fixed.
+
+1. **Typed, lazily (D4).** A table takes its key and value types from what it is made with, and keeps them.
+2. **Two kinds, inferred from how a table is made:** *in order* (values only, at positions 1 to n, never with
+   holes: removing from the middle closes the gap, so the length is always exact; stored as one contiguous array)
+   and *keyed* (any key type; stored as a hash map). The same words work on both where they make sense: length,
+   going through each item, checking whether something is in it.
+3. **No `nil` holes.** Reading a position or key that isn't there is an error, never a silent nothing.
+
+Open: all syntax (the sketch was `scores = table 90, 85, 70` and `ages = table "Ada": 36, "Bob": 41`); the words
+for reading, changing, adding and removing; going through each item, which needs loops; whether a table can be
+empty when made, and what type it gets then.
