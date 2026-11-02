@@ -1,5 +1,0 @@
-not decided yet: d26_text_plus.redstone:2:12, line 2 column 12
- 2 | show "Hi " plus name
-   |            ^^^^
- what: joining text with `plus`
- why:  this part of Redstone's design is still open (D26)

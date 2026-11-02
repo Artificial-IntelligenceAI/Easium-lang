@@ -619,3 +619,12 @@ show_using_format "Ada is <value of "Ada" in ages>"
 ```
 
 Inside a hole, text in quotes is text of its own and does not end the format.
+
+## D47 — `show` can't join text (2026-11-02)
+
+Owner, asked whether `plus` on text (D26) should be dropped now that `show_using_format` (D45, D46) exists: "`show`
+can't concat".
+
+`show "Hi " plus name` is a mistake; text is put together for showing with `show_using_format "Hi <name>"`.
+
+Open: joining text outside `show` (`greeting = "Hi " plus name`, to keep it).

@@ -17,6 +17,7 @@ pub fn check(program: &ast::Program) -> Result<ir::Program, Diagnostic> {
     let mut checker = Checker {
         scopes: vec![HashMap::new()],
         loop_depth: 0,
+        in_show: false,
         ended: HashSet::new(),
         slot_count: 0,
     };
@@ -37,6 +38,8 @@ struct Checker {
     scopes: Vec<HashMap<String, Variable>>,
     /// How many loops the statement being checked is inside (D41).
     loop_depth: usize,
+    /// Whether the expression being checked is being shown (D47).
+    in_show: bool,
     /// Names made inside blocks that have ended: whether they still exist is open.
     ended: HashSet<String>,
     slot_count: usize,
@@ -199,7 +202,7 @@ impl Checker {
         condition: Option<&ast::Expr>,
     ) -> Result<ir::Stmt, Diagnostic> {
         let value_span = value.span;
-        let (value, ty) = self.expression(value)?;
+        let (value, ty) = self.shown_expression(value)?;
         // D32: how a table is shown is still open.
         if ty.is_table() {
             return Err(Diagnostic::not_decided(
@@ -249,6 +252,13 @@ impl Checker {
         })
     }
 
+    fn shown_expression(&mut self, expression: &ast::Expr) -> Result<(ir::Expr, Type), Diagnostic> {
+        self.in_show = true;
+        let result = self.expression(expression);
+        self.in_show = false;
+        result
+    }
+
     // D45
     fn show_format(
         &mut self,
@@ -261,7 +271,7 @@ impl Checker {
             checked.push(match part {
                 ast::FormatPart::Text(text) => ir::FormatPart::Text(Rc::from(text.as_str())),
                 ast::FormatPart::Hole(hole) => {
-                    let (checked, ty) = self.expression(hole)?;
+                    let (checked, ty) = self.shown_expression(hole)?;
                     if ty.is_table() {
                         return Err(Diagnostic::not_decided(
                             "showing a table",
@@ -856,6 +866,7 @@ impl Checker {
         let (checked_left, left_type) = self.expression(left)?;
         let (checked_right, right_type) = self.expression(right)?;
         let operands = Operands {
+            in_show: self.in_show,
             op,
             op_span,
             span,
@@ -893,6 +904,7 @@ impl Checker {
 
 /// The two sides of an arithmetic word or comparison, for working out its type.
 struct Operands {
+    in_show: bool,
     op: BinaryOp,
     op_span: Span,
     span: Span,
@@ -942,9 +954,18 @@ impl Operands {
                 Type::Rational,
             )),
             // D26
-            (Type::Text, Type::Text) if arithmetic == Arithmetic::Plus => Err(
-                Diagnostic::not_decided("joining text with `plus`", Some("D26"), self.op_span),
+            // D47: `show` can't join text; outside `show` it is still open.
+            (Type::Text, Type::Text) if arithmetic == Arithmetic::Plus && self.in_show => Err(
+                Diagnostic::mistake("`show` can't join text with `plus`", self.op_span)
+                    .because("text is put together for showing with `show_using_format`"),
             ),
+            (Type::Text, Type::Text) if arithmetic == Arithmetic::Plus => {
+                Err(Diagnostic::not_decided(
+                    "joining text with `plus` outside `show`",
+                    Some("D47"),
+                    self.op_span,
+                ))
+            }
             _ => Err(self.needs_numbers()),
         }
     }
