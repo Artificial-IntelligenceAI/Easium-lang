@@ -95,6 +95,9 @@ pub enum Op {
         a: u32,
         value: i64,
     },
+    /// The end of a counted round: `ints[counter] += 1`, then back to `to` while it is below `ints[limit]`;
+    /// otherwise on to the next instruction, which goes to the loop's own test.
+    CountUp { counter: u32, limit: u32, to: usize },
     /// Goes to an instruction when comparing two ints or booleans gives true.
     JumpIfCompare {
         op: Comparison,

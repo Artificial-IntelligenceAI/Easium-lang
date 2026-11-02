@@ -39,6 +39,7 @@ pub(crate) fn compile(program: &Program) -> Result<Code, Diagnostic> {
         compiler.slots.push(reg);
     }
     compiler.block(&program.statements)?;
+    count_up(&mut compiler.ops);
     Ok(Code {
         ops: compiler.ops,
         ints: compiler.most.ints as usize,
@@ -1108,5 +1109,30 @@ fn negated(op: Comparison) -> Comparison {
         Comparison::LessThan => Comparison::AtLeast,
         Comparison::AtMost => Comparison::GreaterThan,
         Comparison::GreaterThan => Comparison::AtMost,
+    }
+}
+
+/// Fuses the end of each counted loop: `Increment counter` then `Jump top`, where `top` tests
+/// `JumpIfAtLeast counter, limit`, becomes `CountUp`, which steps and goes straight back into the round. The jump
+/// stays behind it for the last round, so no instruction moves and every jump still lands where it did.
+fn count_up(ops: &mut [Op]) {
+    for at in 0..ops.len().saturating_sub(1) {
+        let (Some(Op::Increment { dst: counter }), Some(Op::Jump { to: top })) =
+            (ops.get(at), ops.get(at + 1))
+        else {
+            continue;
+        };
+        let (counter, top) = (*counter, *top);
+        if let Some(Op::JumpIfAtLeast { a, b: limit, .. }) = ops.get(top)
+            && *a == counter
+            && top < at
+        {
+            let limit = *limit;
+            ops[at] = Op::CountUp {
+                counter,
+                limit,
+                to: top + 1,
+            };
+        }
     }
 }

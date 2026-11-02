@@ -125,6 +125,16 @@ impl Machine<'_> {
                         pc = *to;
                     }
                 }
+                Op::CountUp { counter, limit, to } => {
+                    let next = self.ints[*counter as usize].wrapping_add(1);
+                    self.ints[*counter as usize] = next;
+                    if next < self.ints[*limit as usize] {
+                        pc = match tiering.as_deref_mut() {
+                            Some(tiering) => self.back_edge(code, *to, pc - 1, tiering, loops),
+                            None => *to,
+                        };
+                    }
+                }
                 Op::JumpIfCompare { op, a, b, to } => {
                     let right = match b {
                         Operand::Register(b) => self.ints[*b as usize],
@@ -607,6 +617,7 @@ impl Machine<'_> {
             | Op::JumpIfTrue { .. }
             | Op::JumpIfAtLeast { .. }
             | Op::JumpIfCompare { .. }
+            | Op::CountUp { .. }
             | Op::AddConstant { .. }
             | Op::SubtractConstant { .. }
             | Op::MultiplyConstant { .. }

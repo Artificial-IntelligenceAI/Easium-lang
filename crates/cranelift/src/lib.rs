@@ -238,6 +238,7 @@ fn supported(op: &Op, code: &Code) -> bool {
         }
         Op::JumpIfFalse { condition, .. } | Op::JumpIfTrue { condition, .. } => int(condition),
         Op::JumpIfAtLeast { a, b, .. } => int(a) && int(b),
+        Op::CountUp { counter, limit, .. } => int(counter) && int(limit),
         Op::CheckCount { src, .. } => int(src),
         Op::RationalConstant { dst, .. } => rational(dst),
         Op::MoveRational { dst, src } => rational(dst) && rational(src),
@@ -662,6 +663,17 @@ impl<'b, 'f> LoopBuilder<'b, 'f> {
                 let result = self.builder.ins().uextend(types::I64, compared);
                 self.set(*dst, result)?;
             }
+            Op::CountUp { counter, limit, to } => {
+                let value = self.var(*counter)?;
+                let next = self.builder.ins().iadd_imm_s(value, 1);
+                self.set(*counter, next)?;
+                let limit = self.var(*limit)?;
+                let below = self.builder.ins().icmp(IntCC::SignedLessThan, next, limit);
+                let target = self.block_for(*to);
+                let after = self.block_for(self.head + at + 1);
+                self.builder.ins().brif(below, target, &[], after, &[]);
+                return Some(());
+            }
             Op::JumpIfCompare { op, a, b, to } => {
                 let a = self.var(*a)?;
                 let compared = match b {
@@ -967,6 +979,7 @@ fn int_registers(op: &Op) -> Vec<u32> {
         | Op::CompareInts { dst, a, b, .. } => vec![*dst, *a, *b],
         Op::JumpIfFalse { condition, .. } | Op::JumpIfTrue { condition, .. } => vec![*condition],
         Op::JumpIfAtLeast { a, b, .. } | Op::DivideInts { a, b, .. } => vec![*a, *b],
+        Op::CountUp { counter, limit, .. } => vec![*counter, *limit],
         Op::AddConstant { dst, a, .. }
         | Op::SubtractConstant { dst, a, .. }
         | Op::MultiplyConstant { dst, a, .. }
