@@ -1,0 +1,24 @@
+x = 0.0
+y = 1.0
+z = 0.5
+repeat 40 times:
+    x becomes x plus (current_round divided_by 7)
+    x becomes x minus (1 divided_by (current_round plus 2))
+    y becomes y times (current_round plus 1 divided_by current_round)
+    z becomes z minus z
+    z becomes z plus 0.25
+end_of repeat
+show whether x greater_than 0.0
+show y
+show z
+w = 1.0
+repeat 30 times:
+    w becomes w times 0.5
+    w becomes w minus 0.0
+end_of repeat
+show whether w less_than 0.001
+big = 1.0
+repeat 200 times:
+    big becomes big times (current_round plus 1 divided_by current_round)
+    big becomes big plus (1 divided_by 3)
+end_of repeat

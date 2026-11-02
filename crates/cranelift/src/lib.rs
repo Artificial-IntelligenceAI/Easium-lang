@@ -35,6 +35,8 @@ pub struct Cranelift {
     loops: usize,
     /// How to read a table item in place, when `Value`'s layout checked out.
     layout: Option<calls::ValueLayout>,
+    /// Whether rationals can be worked on in place, when `Rational`'s layout checked out.
+    rationals_in_place: bool,
 }
 
 /// The helpers compiled loops call, as declared in the module.
@@ -134,6 +136,7 @@ impl Cranelift {
             helpers,
             loops: 0,
             layout: calls::value_layout(),
+            rationals_in_place: calls::rational_layout_checks_out(),
         })
     }
 }
@@ -181,7 +184,7 @@ impl LoopCompiler for Cranelift {
             head,
             pointer_type,
             &constants,
-            self.layout,
+            (self.layout, self.rationals_in_place),
         );
         builder.seal_all_blocks();
         builder.finalize(frontend_config);
@@ -325,6 +328,8 @@ struct LoopBuilder<'b, 'f> {
     views: HashMap<u32, (Variable, Variable)>,
     /// A 16-byte stack slot views are fetched into.
     view_slot: Option<Value>,
+    /// Whether rationals can be worked on in place.
+    rationals_in_place: bool,
 }
 
 impl<'b, 'f> LoopBuilder<'b, 'f> {
@@ -335,7 +340,7 @@ impl<'b, 'f> LoopBuilder<'b, 'f> {
         head: usize,
         pointer_type: types::Type,
         constants: &[Rational],
-        layout: Option<calls::ValueLayout>,
+        (layout, rationals_in_place): (Option<calls::ValueLayout>, bool),
     ) -> Option<()> {
         let entry = builder.create_block();
         builder.append_block_params_for_function_params(entry);
@@ -388,6 +393,7 @@ impl<'b, 'f> LoopBuilder<'b, 'f> {
                 .collect::<Option<_>>()?,
             next_constant: 0,
             layout,
+            rationals_in_place,
             views: HashMap::new(),
             view_slot: None,
         };
@@ -756,6 +762,13 @@ impl<'b, 'f> LoopBuilder<'b, 'f> {
             Op::AddRationals { dst, a, b, .. }
             | Op::SubtractRationals { dst, a, b, .. }
             | Op::MultiplyRationals { dst, a, b, .. }
+                if self.rationals_in_place =>
+            {
+                self.rational_in_place(at, op, *dst, *a, *b)?;
+            }
+            Op::AddRationals { dst, a, b, .. }
+            | Op::SubtractRationals { dst, a, b, .. }
+            | Op::MultiplyRationals { dst, a, b, .. }
             | Op::DivideRationals { dst, a, b, .. } => {
                 let code = match op {
                     Op::AddRationals { .. } => 0,
@@ -941,6 +954,162 @@ impl LoopBuilder<'_, '_> {
                 .load(types::I64, MemFlagsData::trusted(), place, layout.payload)
         };
         self.set(reg, value)
+    }
+}
+
+impl LoopBuilder<'_, '_> {
+    /// A rational register's numerator and denominator.
+    fn load_rational(&mut self, reg: u32) -> (Value, Value) {
+        let place = self.rational_place(reg);
+        let numerator = self
+            .builder
+            .ins()
+            .load(types::I64, MemFlagsData::trusted(), place, 0);
+        let denominator = self
+            .builder
+            .ins()
+            .load(types::I64, MemFlagsData::trusted(), place, 8);
+        (numerator, denominator)
+    }
+
+    fn store_rational(&mut self, reg: u32, numerator: Value, denominator: Value) {
+        let place = self.rational_place(reg);
+        self.builder
+            .ins()
+            .store(MemFlagsData::trusted(), numerator, place, 0);
+        self.builder
+            .ins()
+            .store(MemFlagsData::trusted(), denominator, place, 8);
+    }
+
+    fn rational_place(&mut self, reg: u32) -> Value {
+        let distance = self.constant(i64::from(reg) * 16);
+        self.builder.ins().iadd(self.rationals, distance)
+    }
+
+    /// Euclid's GCD of two numbers read as unsigned, as a small loop.
+    fn gcd(&mut self, a: Value, b: Value) -> Value {
+        let header = self.builder.create_block();
+        let x = self.builder.append_block_param(header, types::I64);
+        let y = self.builder.append_block_param(header, types::I64);
+        let body = self.builder.create_block();
+        let exit = self.builder.create_block();
+        let result = self.builder.append_block_param(exit, types::I64);
+        self.builder
+            .ins()
+            .jump(header, &[BlockArg::Value(a), BlockArg::Value(b)]);
+        self.builder.switch_to_block(header);
+        let done = self.builder.ins().icmp_imm_s(IntCC::Equal, y, 0);
+        self.builder
+            .ins()
+            .brif(done, exit, &[BlockArg::Value(x)], body, &[]);
+        self.builder.switch_to_block(body);
+        let rest = self.builder.ins().urem(x, y);
+        self.builder
+            .ins()
+            .jump(header, &[BlockArg::Value(y), BlockArg::Value(rest)]);
+        self.builder.switch_to_block(exit);
+        result
+    }
+
+    /// Goes to `target` when `condition` is non-zero; otherwise goes on in a new block.
+    fn branch_if(&mut self, condition: Value, target: Block) {
+        let go_on = self.builder.create_block();
+        self.builder.ins().brif(condition, target, &[], go_on, &[]);
+        self.builder.switch_to_block(go_on);
+    }
+
+    /// Adds, subtracts or multiplies two rationals in place, the way tier 0's quick path does: small numbers stay in
+    /// 64 bits. Anything unusual (an overflow, `i64::MIN`) takes the helper call instead, which handles every case.
+    fn rational_in_place(
+        &mut self,
+        at: usize,
+        op: &Op,
+        dst: u32,
+        left_reg: u32,
+        right_reg: u32,
+    ) -> Option<()> {
+        let slow = self.builder.create_block();
+        let zero = self.builder.create_block();
+        let done = self.builder.create_block();
+        let (an, ad) = self.load_rational(left_reg);
+        let (bn, bd) = self.load_rational(right_reg);
+        let (numerator, denominator) = if matches!(op, Op::MultiplyRationals { .. }) {
+            let an_zero = self.builder.ins().icmp_imm_s(IntCC::Equal, an, 0);
+            let bn_zero = self.builder.ins().icmp_imm_s(IntCC::Equal, bn, 0);
+            let either = self.builder.ins().bor(an_zero, bn_zero);
+            self.branch_if(either, zero);
+            // Cancelling across first leaves the product reduced.
+            let an_size = self.builder.ins().iabs(an);
+            let bn_size = self.builder.ins().iabs(bn);
+            let g1 = self.gcd(an_size, bd);
+            let g2 = self.gcd(bn_size, ad);
+            let left = self.builder.ins().sdiv(an, g1);
+            let right = self.builder.ins().sdiv(bn, g2);
+            let (numerator, numerator_overflow) = self.builder.ins().smul_overflow(left, right);
+            let below = self.builder.ins().udiv(ad, g2);
+            let other = self.builder.ins().udiv(bd, g1);
+            let (denominator, denominator_overflow) =
+                self.builder.ins().smul_overflow(below, other);
+            let overflow = self
+                .builder
+                .ins()
+                .bor(numerator_overflow, denominator_overflow);
+            self.branch_if(overflow, slow);
+            (numerator, denominator)
+        } else {
+            let bn = if matches!(op, Op::SubtractRationals { .. }) {
+                let minimum = self.builder.ins().icmp_imm_s(IntCC::Equal, bn, i64::MIN);
+                self.branch_if(minimum, slow);
+                self.builder.ins().ineg(bn)
+            } else {
+                bn
+            };
+            // Knuth: with g = gcd(b, d), t = a·(d/g) + c·(b/g), g2 = gcd(t, g): (t/g2) / ((b/g)·(d/g2)).
+            let common = self.gcd(ad, bd);
+            let bd_part = self.builder.ins().udiv(bd, common);
+            let ad_part = self.builder.ins().udiv(ad, common);
+            let (first, first_overflow) = self.builder.ins().smul_overflow(an, bd_part);
+            let (second, second_overflow) = self.builder.ins().smul_overflow(bn, ad_part);
+            let (combined, combined_overflow) = self.builder.ins().sadd_overflow(first, second);
+            let products = self.builder.ins().bor(first_overflow, second_overflow);
+            let overflow = self.builder.ins().bor(products, combined_overflow);
+            self.branch_if(overflow, slow);
+            let combined_zero = self.builder.ins().icmp_imm_s(IntCC::Equal, combined, 0);
+            self.branch_if(combined_zero, zero);
+            let size = self.builder.ins().iabs(combined);
+            let common_again = self.gcd(size, common);
+            let numerator = self.builder.ins().sdiv(combined, common_again);
+            let rest = self.builder.ins().udiv(bd, common_again);
+            let (denominator, overflow) = self.builder.ins().smul_overflow(ad_part, rest);
+            self.branch_if(overflow, slow);
+            (numerator, denominator)
+        };
+        self.store_rational(dst, numerator, denominator);
+        self.builder.ins().jump(done, &[]);
+        self.builder.switch_to_block(zero);
+        let (nothing, one) = (self.constant(0), self.constant(1));
+        self.store_rational(dst, nothing, one);
+        self.builder.ins().jump(done, &[]);
+        self.builder.switch_to_block(slow);
+        let code = match op {
+            Op::AddRationals { .. } => 0,
+            Op::SubtractRationals { .. } => 1,
+            _ => 2,
+        };
+        let args = [
+            self.rationals,
+            self.rationals_length,
+            self.constant(code),
+            self.constant(i64::from(dst)),
+            self.constant(i64::from(left_reg)),
+            self.constant(i64::from(right_reg)),
+        ];
+        let failed = self.call(self.helpers.rational_arithmetic, &args)?;
+        self.bail_if(at, failed);
+        self.builder.ins().jump(done, &[]);
+        self.builder.switch_to_block(done);
+        Some(())
     }
 }
 

@@ -16,6 +16,10 @@
 //!   [`value_layout`] measured. The view stays valid for the whole call: compiled loops never change, move or drop
 //!   a table (the instructions that could keep a loop in tier 0), and tier 0 doesn't run while one does.
 //!
+//! - **Rationals in place.** Compiled loops add, subtract and multiply rationals in their register file
+//!   directly, after [`rational_layout_checks_out`] confirmed the numerator and denominator are where they read
+//!   them; the file was lent for the call and its registers are checked to be inside it when the loop is compiled.
+//!
 //! A helper never writes when it fails, so tier 0 can run the same instruction again and report the error
 //! exactly as it always does (rule 10).
 #![allow(unsafe_code)]
@@ -390,4 +394,21 @@ pub(crate) extern "C" fn table_view(
         out.add(1).write(length);
     }
     0
+}
+
+/// Whether [`Rational`] is laid out as compiled loops read it: 16 bytes, the numerator at offset 0 and the
+/// denominator at offset 8.
+pub(crate) fn rational_layout_checks_out() -> bool {
+    let Ok(sample) = Rational::new(3, 7) else {
+        return false;
+    };
+    if std::mem::size_of::<Rational>() != 16 || std::mem::align_of::<Rational>() < 8 {
+        return false;
+    }
+    // SAFETY: two aligned i64 reads inside a live 16-byte value, whose size was just checked.
+    let (numerator, denominator) = unsafe {
+        let start = std::ptr::from_ref(&sample).cast::<i64>();
+        (start.read(), start.add(1).read())
+    };
+    numerator == 3 && denominator == 7
 }

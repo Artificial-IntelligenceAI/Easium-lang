@@ -1,0 +1,5 @@
+not decided yet: d36_compiled_rationals.easium:22:17, line 22 column 17
+ 22 |     big becomes big times ((current_round plus 1) divided_by current_round)
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ what: what happens when a rational's parts outgrow 64 bits
+ why:  this part of Easium's design is still open (D7)

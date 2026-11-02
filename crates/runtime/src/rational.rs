@@ -5,9 +5,11 @@ use std::fmt;
 
 /// An exact fraction whose numerator and denominator each fit in 64 bits.
 ///
-/// Always reduced, with a positive denominator, so equal rationals have equal parts.
+/// Always reduced, with a positive denominator, so equal rationals have equal parts. Laid out as a C struct,
+/// numerator then denominator, so the Cranelift tier can work on rationals in place (D36); it checks first.
 // D7
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[repr(C)]
 pub struct Rational {
     numerator: i64,
     denominator: i64,
