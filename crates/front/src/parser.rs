@@ -43,6 +43,7 @@ enum Shape {
     Arithmetic { remainder: bool },
     Comparison,
     Logic,
+    Join,
 }
 
 struct Parser<'tokens> {
@@ -772,7 +773,7 @@ impl Parser<'_> {
 
     // D17, D18, D20
     fn comparison(&mut self) -> Result<(Expr, Shape), Diagnostic> {
-        let (left, left_shape) = self.additive()?;
+        let (left, left_shape) = self.join()?;
         let Some(op) = self.peek_keyword().and_then(comparison_op) else {
             return Ok((left, left_shape));
         };
@@ -786,7 +787,12 @@ impl Parser<'_> {
             );
         }
         // D30: comparisons bind looser than all arithmetic, so the arithmetic on each side comes first.
-        let (right, _) = self.additive()?;
+        let (right, right_shape) = self.join()?;
+        for (side, shape) in [(&left, left_shape), (&right, right_shape)] {
+            if shape == Shape::Join {
+                return Err(join_beside_others(side.span));
+            }
+        }
         if self.peek_keyword().and_then(comparison_op).is_some() {
             return Err(Diagnostic::not_decided(
                 "chaining comparisons",
@@ -795,6 +801,24 @@ impl Parser<'_> {
             ));
         }
         Ok((binary(op, op_span, left, right), Shape::Comparison))
+    }
+
+    // D48: `"Hi " <- name`.
+    fn join(&mut self) -> Result<(Expr, Shape), Diagnostic> {
+        let (mut left, mut shape) = self.additive()?;
+        while self.peek().kind == TokenKind::Join {
+            let op_span = self.peek().span;
+            self.advance();
+            let (right, right_shape) = self.additive()?;
+            for (side, side_shape) in [(&left, shape), (&right, right_shape)] {
+                if matches!(side_shape, Shape::Arithmetic { .. }) {
+                    return Err(join_beside_others(side.span));
+                }
+            }
+            left = binary(BinaryOp::Join, op_span, left, right);
+            shape = Shape::Join;
+        }
+        Ok((left, shape))
     }
 
     // D16, D17: `plus` and `minus` bind looser than `times` and `divided_by`.
@@ -1091,6 +1115,14 @@ fn binary(op: BinaryOp, op_span: Span, left: Expr, right: Expr) -> Expr {
     }
 }
 
+fn join_beside_others(span: Span) -> Diagnostic {
+    Diagnostic::not_decided(
+        "`<-` beside arithmetic or a comparison without parentheses",
+        Some("D48"),
+        span,
+    )
+}
+
 fn has_remainder(shape: Shape) -> bool {
     shape == Shape::Arithmetic { remainder: true }
 }
@@ -1136,6 +1168,7 @@ fn describe(kind: &TokenKind) -> String {
         TokenKind::Equals => "`=`".to_owned(),
         TokenKind::Colon => "`:`".to_owned(),
         TokenKind::Comma => "`,`".to_owned(),
+        TokenKind::Join => "`<-`".to_owned(),
         TokenKind::OpenParen => "`(`".to_owned(),
         TokenKind::CloseParen => "`)`".to_owned(),
         TokenKind::Newline => "the end of the line".to_owned(),

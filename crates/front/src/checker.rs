@@ -648,6 +648,8 @@ impl Checker {
     }
 
     fn expression(&mut self, expression: &ast::Expr) -> Result<(ir::Expr, Type), Diagnostic> {
+        // D47: only the value `show` puts on the line counts as shown, not the parts inside it.
+        let shown = std::mem::take(&mut self.in_show);
         let span = expression.span;
         let (kind, ty) = match &expression.kind {
             ExprKind::Int(value) => (ir::ExprKind::Int(*value), Type::Int),
@@ -682,7 +684,7 @@ impl Checker {
                 op_span,
                 left,
                 right,
-            } => self.binary(*op, *op_span, left, right, span)?,
+            } => self.binary(*op, *op_span, left, right, span, shown)?,
             ExprKind::InOrder(items) => self.in_order(items)?,
             ExprKind::Keyed(entries) => self.keyed(entries)?,
             ExprKind::ReadPosition {
@@ -830,6 +832,37 @@ impl Checker {
         ))
     }
 
+    // D47, D48: `<-` joins text, but not inside `show`.
+    fn join(
+        &mut self,
+        op_span: Span,
+        left: &ast::Expr,
+        right: &ast::Expr,
+        shown: bool,
+    ) -> Result<(ir::ExprKind, Type), Diagnostic> {
+        if shown {
+            return Err(
+                Diagnostic::mistake("`show` can't join text with `<-`", op_span)
+                    .because("text is put together for showing with `show_using_format`"),
+            );
+        }
+        let (checked_left, left_type) = self.expression(left)?;
+        let (checked_right, right_type) = self.expression(right)?;
+        for (side, ty) in [(left, &left_type), (right, &right_type)] {
+            if *ty != Type::Text {
+                return Err(Diagnostic::not_decided(
+                    format!("joining {} with `<-`", ty.described()),
+                    Some("D48"),
+                    side.span,
+                ));
+            }
+        }
+        Ok((
+            ir::ExprKind::Join(Box::new(checked_left), Box::new(checked_right)),
+            Type::Text,
+        ))
+    }
+
     fn boolean_operand(&mut self, word: &str, operand: &ast::Expr) -> Result<ir::Expr, Diagnostic> {
         let (checked, ty) = self.expression(operand)?;
         if ty != Type::Boolean {
@@ -851,7 +884,11 @@ impl Checker {
         left: &ast::Expr,
         right: &ast::Expr,
         span: Span,
+        shown: bool,
     ) -> Result<(ir::ExprKind, Type), Diagnostic> {
+        if op == BinaryOp::Join {
+            return self.join(op_span, left, right, shown);
+        }
         // D21
         if matches!(op, BinaryOp::And | BinaryOp::Or) {
             let checked_left = Box::new(self.boolean_operand(op.word(), left)?);
@@ -866,7 +903,7 @@ impl Checker {
         let (checked_left, left_type) = self.expression(left)?;
         let (checked_right, right_type) = self.expression(right)?;
         let operands = Operands {
-            in_show: self.in_show,
+            in_show: shown,
             op,
             op_span,
             span,

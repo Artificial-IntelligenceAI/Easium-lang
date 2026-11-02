@@ -128,6 +128,8 @@ pub enum TokenKind {
     Colon,
     /// `,`
     Comma,
+    /// `<-`, which joins text (D48).
+    Join,
     /// `(`
     OpenParen,
     /// `)`
@@ -214,6 +216,14 @@ impl Lexer<'_> {
                 }
                 '=' => self.single(TokenKind::Equals, start),
                 '"' => self.text(start)?,
+                // D48
+                '<' if self.peek_at(1).is_some_and(|(_, next)| next == '-') => {
+                    self.position += 2;
+                    self.tokens.push(Token {
+                        kind: TokenKind::Join,
+                        span: Span::new(start, start + 2),
+                    });
+                }
                 '0'..='9' => self.number(start)?,
                 'a'..='z' | 'A'..='Z' | '_' => self.word(start),
                 _ => return Err(self.unknown(start, character)),

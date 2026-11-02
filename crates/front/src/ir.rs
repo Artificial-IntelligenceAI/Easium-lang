@@ -246,6 +246,8 @@ pub enum ExprKind {
     Or(Box<Expr>, Box<Expr>),
     /// `not`
     Not(Box<Expr>),
+    /// `<-`: joins two pieces of text (D48).
+    Join(Box<Expr>, Box<Expr>),
     /// `ask`, with its prompt (D26).
     Ask(Box<Expr>),
     /// Makes an in-order table (D33).

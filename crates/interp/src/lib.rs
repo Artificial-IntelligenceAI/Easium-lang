@@ -436,6 +436,13 @@ impl Machine<'_> {
                 Ok(Value::Boolean(self.boolean(left)? || self.boolean(right)?))
             }
             ExprKind::Not(operand) => Ok(Value::Boolean(!self.boolean(operand)?)),
+            // D48
+            ExprKind::Join(left, right) => match (self.evaluate(left)?, self.evaluate(right)?) {
+                (Value::Text(left), Value::Text(right)) => {
+                    Ok(Value::Text(Rc::from(format!("{left}{right}"))))
+                }
+                _ => Err(type_bug(span)),
+            },
             ExprKind::Ask(prompt) => self.ask(prompt),
             // D32, D33
             ExprKind::InOrder(items) => {

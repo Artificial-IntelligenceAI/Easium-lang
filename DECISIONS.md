@@ -628,3 +628,17 @@ can't concat".
 `show "Hi " plus name` is a mistake; text is put together for showing with `show_using_format "Hi <name>"`.
 
 Open: joining text outside `show` (`greeting = "Hi " plus name`, to keep it).
+
+## D48 — `<-` joins text (2026-11-02)
+
+Owner, asked whether text may be joined outside `show` (D47):
+
+```
+fghj = "asdadad " <- name
+```
+
+`<-` joins two pieces of text into one: `greeting = "Hi " <- name`. `show` still can't join (D47), so
+`show "Hi " <- name` is a mistake; `show greeting` is fine.
+
+Open: joining something that isn't text (`"Age: " <- age`); how `<-` binds beside arithmetic and comparisons (for now
+they need parentheses); whether `<-` is the one symbol among the words (D16's symbols question).
