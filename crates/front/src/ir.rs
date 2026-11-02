@@ -117,11 +117,15 @@ pub enum Stmt {
     RepeatUntil {
         /// The test.
         test: Expr,
+        /// The slot holding `current_round` (D51).
+        current_round: usize,
         /// The block.
         body: Vec<Stmt>,
     },
     /// Runs a block until a `stop` leaves it (D41).
     RepeatForever {
+        /// The slot holding `current_round` (D51).
+        current_round: usize,
         /// The block.
         body: Vec<Stmt>,
     },

@@ -672,3 +672,9 @@ Inside `repeat … times`, `current_round` is the round being run, counting from
 `repeat … times` hides the outer one's.
 
 Open: `current_round` in `repeat until` and `repeat forever`.
+
+## D51 — `current_round` in every `repeat` (2026-11-02)
+
+Owner: "yes" (to redstone design claude's question). `repeat until` and `repeat forever` have `current_round` too,
+counting from 1, as `repeat … times` does (D50). In `repeat until`, the test is checked before each round, so it
+sees `current_round` of the round about to run. Settles D50's open question.

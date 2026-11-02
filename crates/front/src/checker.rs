@@ -146,9 +146,7 @@ impl Checker {
                 condition,
             } => self.show_format(parts, *count, condition.as_ref()),
             ast::Stmt::RepeatTimes { count, body } => self.repeat_times(count, body),
-            ast::Stmt::RepeatForever { body } => Ok(ir::Stmt::RepeatForever {
-                body: self.loop_body(body)?,
-            }),
+            ast::Stmt::RepeatForever { body } => self.repeat_forever(body),
             ast::Stmt::Stop { span, condition } => {
                 if self.loop_depth == 0 {
                     return Err(
@@ -519,16 +517,7 @@ impl Checker {
                 count.span,
             ));
         }
-        // D50: `current_round` counts the rounds from 1, in a scope of its own.
-        let current_round = self.slot_count;
-        self.slot_count += 1;
-        self.scopes.push(HashMap::from([(
-            "current_round".to_owned(),
-            Variable {
-                slot: current_round,
-                ty: Type::Int,
-            },
-        )]));
+        let current_round = self.push_current_round();
         let body = self.loop_body(body);
         self.scopes.pop();
         Ok(ir::Stmt::RepeatTimes {
@@ -538,11 +527,41 @@ impl Checker {
         })
     }
 
+    // D50, D51: `current_round` counts a `repeat`'s rounds from 1, in a scope of its own.
+    fn push_current_round(&mut self) -> usize {
+        let slot = self.slot_count;
+        self.slot_count += 1;
+        self.scopes.push(HashMap::from([(
+            "current_round".to_owned(),
+            Variable {
+                slot,
+                ty: Type::Int,
+            },
+        )]));
+        slot
+    }
+
     fn repeat_until(
         &mut self,
         test: &ast::Expr,
         body: &[ast::Stmt],
     ) -> Result<ir::Stmt, Diagnostic> {
+        let current_round = self.push_current_round();
+        let result = self.repeat_until_in_scope(test, body);
+        self.scopes.pop();
+        let (test, body) = result?;
+        Ok(ir::Stmt::RepeatUntil {
+            test,
+            current_round,
+            body,
+        })
+    }
+
+    fn repeat_until_in_scope(
+        &mut self,
+        test: &ast::Expr,
+        body: &[ast::Stmt],
+    ) -> Result<(ir::Expr, Vec<ir::Stmt>), Diagnostic> {
         let (checked, ty) = self.expression(test)?;
         if ty != Type::Boolean {
             return Err(Diagnostic::mistake(
@@ -553,9 +572,16 @@ impl Checker {
                 test.span,
             ));
         }
-        Ok(ir::Stmt::RepeatUntil {
-            test: checked,
-            body: self.loop_body(body)?,
+        Ok((checked, self.loop_body(body)?))
+    }
+
+    fn repeat_forever(&mut self, body: &[ast::Stmt]) -> Result<ir::Stmt, Diagnostic> {
+        let current_round = self.push_current_round();
+        let body = self.loop_body(body);
+        self.scopes.pop();
+        Ok(ir::Stmt::RepeatForever {
+            current_round,
+            body: body?,
         })
     }
 
@@ -656,13 +682,6 @@ impl Checker {
         }
         if self.ended.contains(name) {
             return Err(made_in_ended_block(name, span));
-        }
-        if name == "current_round" && self.loop_depth > 0 {
-            return Err(Diagnostic::not_decided(
-                "`current_round` outside `repeat … times`",
-                Some("D50"),
-                span,
-            ));
         }
         Err(Diagnostic::mistake(format!("there's no `{name}`"), span).because(why))
     }

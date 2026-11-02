@@ -1,0 +1,13 @@
+repeat forever:
+    answer = ask "Command: "
+    stop if answer is "quit"
+end_of repeat
+repeat until current_round greater_than 3:
+    show_using_format "Try <current_round>"
+end_of repeat
+tries = 0
+repeat forever:
+    tries becomes current_round
+    stop if current_round is 4
+end_of repeat
+show_using_format "Took <tries> rounds"

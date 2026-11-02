@@ -169,14 +169,30 @@ impl Machine<'_> {
                     }
                 }
             }
-            Stmt::RepeatUntil { test, body } => {
-                while !self.boolean(test)? {
+            // D51: the test sees the round about to run.
+            Stmt::RepeatUntil {
+                test,
+                current_round,
+                body,
+            } => {
+                for round in 1.. {
+                    self.set_slot(*current_round, Value::Int(round), test.span)?;
+                    if self.boolean(test)? || self.block(body)? == Flow::Stop {
+                        break;
+                    }
+                }
+            }
+            Stmt::RepeatForever {
+                current_round,
+                body,
+            } => {
+                for round in 1.. {
+                    self.set_slot(*current_round, Value::Int(round), Span::new(0, 0))?;
                     if self.block(body)? == Flow::Stop {
                         break;
                     }
                 }
             }
-            Stmt::RepeatForever { body } => while self.block(body)? != Flow::Stop {},
             _ => {}
         }
         Ok(())

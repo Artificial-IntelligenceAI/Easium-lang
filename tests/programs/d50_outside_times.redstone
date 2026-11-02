@@ -1,4 +1,0 @@
-repeat forever:
-    show current_round
-    stop
-end_of repeat
