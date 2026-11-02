@@ -712,3 +712,16 @@ Owner: "License is Apache 2.0 with LLVM exception, and CC BY 4.0 for docs" (the 
 - **`LICENSE-CC-BY-4.0`: CC BY 4.0**, for the repo's writing: every Markdown file. Credit line, as Radium's:
   `Easium GitHub repo text: https://github.com/Artificial-IntelligenceAI/Easium-lang`. Code and code comments stay
   under `LICENSE`.
+
+## D55 — Memory: reference counting (2026-11-02)
+
+Owner, asked GC or RC: "Should the question "Would Easium become multi-threaded" be answered first?", then "RC"
+(easium design claude recommended recording RC now, since it holds under every threading option, and leaving the
+rest to the concurrency decision).
+
+- **Values are reference counted**, and freed the moment the last holder lets go: no collector, no pauses.
+- **Copy-on-write (D37) uses the count:** a value with one holder is changed in place; a shared one is copied first.
+- **No cycles can form** while tables are copied, not shared (D37), so plain counting leaks nothing.
+
+Open: whether counts are atomic, which depends on whether and how Easium gets threads (none yet, so today's counts
+are plain); how cycles are collected if shared mutable things (objects, captured variables) ever arrive.
