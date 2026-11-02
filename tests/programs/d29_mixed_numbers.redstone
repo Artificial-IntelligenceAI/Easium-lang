@@ -1,0 +1,5 @@
+show 1 plus 0.5
+show whether 1 is 1.0
+half = 7 divided_by 2
+show "Over 3" if half greater_than 3
+show whether 3 at_least half

@@ -297,12 +297,14 @@ impl Checker {
             }
             (None, Some(comparison)) => {
                 let ty = operands.comparison(comparison)?;
+                // D29
+                let (left, right) = match (left_type, right_type) {
+                    (Type::Int, Type::Rational) => (to_rational(Box::new(checked_left)), checked_right),
+                    (Type::Rational, Type::Int) => (checked_left, to_rational(Box::new(checked_right))),
+                    _ => (checked_left, checked_right),
+                };
                 Ok((
-                    ir::ExprKind::Compare(
-                        comparison,
-                        Box::new(checked_left),
-                        Box::new(checked_right),
-                    ),
+                    ir::ExprKind::Compare(comparison, Box::new(left), Box::new(right)),
                     ty,
                 ))
             }
@@ -355,7 +357,7 @@ impl Operands {
                     self.op_span,
                 ))
             }
-            // D7: an int beside a rational counts as a rational, as in `1 / 3 * 3` being `1`.
+            // D7, D29: an int beside a rational counts as a rational, as in `1 / 3 * 3` being `1`.
             (Type::Int, Type::Rational) => Ok((
                 ir::ExprKind::RationalArithmetic(arithmetic, Box::new(to_rational(left)), right),
                 Type::Rational,
@@ -376,8 +378,7 @@ impl Operands {
     fn comparison(&self, comparison: Comparison) -> Result<Type, Diagnostic> {
         let ordering = !matches!(comparison, Comparison::Is | Comparison::IsNot);
         match (self.left.1, self.right.1) {
-            (Type::Int, Type::Int) | (Type::Rational, Type::Rational) => Ok(Type::Boolean),
-            (Type::Int, Type::Rational) | (Type::Rational, Type::Int) => Err(self.mixed_numbers()),
+            (Type::Int | Type::Rational, Type::Int | Type::Rational) => Ok(Type::Boolean),
             (Type::Text, Type::Text) if ordering => Err(Diagnostic::not_decided(
                 format!("comparing text with `{}`", self.op.word()),
                 "D18",
@@ -395,18 +396,6 @@ impl Operands {
                 self.span,
             )),
         }
-    }
-
-    fn mixed_numbers(&self) -> Diagnostic {
-        Diagnostic::not_decided(
-            format!(
-                "`{}` with an int on one side and a rational on the other",
-                self.op.word()
-            ),
-            "D7",
-            self.span,
-        )
-        .with_hint("write the int as a decimal, like `1.0`, to make both rationals")
     }
 
     fn needs_numbers(&self) -> Diagnostic {

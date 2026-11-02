@@ -323,3 +323,11 @@ it, `show age at_least 18` is an error that suggests `whether`.
 
 Open (redstone design claude's reading, not ruled): the rule covers anything built with a comparison or `and`, `or`,
 `not`; a plain boolean (`show true`, `show is_adult`) needs no `whether`; `whether` anywhere but right after `show`.
+
+## D29 — An int beside a rational counts as a rational (2026-11-02)
+
+Owner: "yes" (to redstone design claude's question whether comparing a rational with an int should just work, as the
+arithmetic already did, read from D7's example `1 / 3 * 3` being `1`).
+
+Where an int meets a rational, in arithmetic or a comparison, the int counts as a rational: `1 plus 0.5` is `1.5`;
+`half greater_than 3` compares 3.5 with 3; `1 is 1.0` is `true`. `remainder` on rationals stays open (D16).
