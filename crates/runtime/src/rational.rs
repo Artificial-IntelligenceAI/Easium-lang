@@ -108,6 +108,142 @@ impl Rational {
         Self::new(a * d, b * c)
     }
 
+    /// `self + other`, the same result as [`Rational::checked_add`] by a quicker path, for the tiers: the
+    /// reference interpreter keeps the simple one (D52, rule 10). A reduced fraction is unique, so any exact method
+    /// gives the same answer, and "too big" means the same in both: the reduced result doesn't fit in 64 bits.
+    ///
+    /// # Errors
+    ///
+    /// `TooBig` when the result's parts don't fit in 64 bits.
+    pub fn add_quickly(self, other: Self) -> Result<Self, RationalError> {
+        self.sum_quickly(other, false)
+    }
+
+    /// `self - other`, as [`Rational::checked_sub`], by a quicker path (see [`Rational::add_quickly`]).
+    ///
+    /// # Errors
+    ///
+    /// `TooBig` when the result's parts don't fit in 64 bits.
+    pub fn subtract_quickly(self, other: Self) -> Result<Self, RationalError> {
+        self.sum_quickly(other, true)
+    }
+
+    // D36: same denominators (tenths and tenths, ints and ints) need only the sum reduced; otherwise Knuth's
+    // method keeps the numbers small: with g = gcd(b, d), t = a·(d/g) ± c·(b/g), and g2 = gcd(t, g), the result
+    // is (t/g2) / ((b/g)·(d/g2)), already reduced.
+    fn sum_quickly(self, other: Self, subtract: bool) -> Result<Self, RationalError> {
+        let (a, b) = (self.numerator, self.denominator);
+        let c = if subtract {
+            other.numerator.checked_neg()
+        } else {
+            Some(other.numerator)
+        };
+        let d = other.denominator;
+        // The common case stays in 64 bits, where division is one instruction; anything that would overflow
+        // goes the 128-bit way.
+        let narrow = c.and_then(|c| {
+            if b == d {
+                let numerator = a.checked_add(c)?;
+                if numerator == 0 {
+                    return Some(Self::from_int(0));
+                }
+                let divisor = gcd_euclid(numerator.unsigned_abs(), b.unsigned_abs()).cast_signed();
+                return Some(Self {
+                    numerator: numerator / divisor,
+                    denominator: b / divisor,
+                });
+            }
+            let common = gcd_euclid(b.unsigned_abs(), d.unsigned_abs()).cast_signed();
+            let combined = a
+                .checked_mul(d / common)?
+                .checked_add(c.checked_mul(b / common)?)?;
+            if combined == 0 {
+                return Some(Self::from_int(0));
+            }
+            let common_again =
+                gcd_euclid(combined.unsigned_abs(), common.unsigned_abs()).cast_signed();
+            Some(Self {
+                numerator: combined / common_again,
+                denominator: (b / common).checked_mul(d / common_again)?,
+            })
+        });
+        match narrow {
+            Some(result) => Ok(result),
+            None if subtract => self.checked_sub(other),
+            None => self.checked_add(other),
+        }
+    }
+
+    /// `self * other`, as [`Rational::checked_mul`], by a quicker path: cancelling across before multiplying
+    /// leaves the product already reduced, so a product that overflows 64 bits is too big.
+    ///
+    /// # Errors
+    ///
+    /// `TooBig` when the result's parts don't fit in 64 bits.
+    pub fn multiply_quickly(self, other: Self) -> Result<Self, RationalError> {
+        if self.numerator == 0 || other.numerator == 0 {
+            return Ok(Self::from_int(0));
+        }
+        let g1 = gcd_euclid(
+            self.numerator.unsigned_abs(),
+            other.denominator.unsigned_abs(),
+        )
+        .cast_signed();
+        let g2 = gcd_euclid(
+            other.numerator.unsigned_abs(),
+            self.denominator.unsigned_abs(),
+        )
+        .cast_signed();
+        let narrow = (|| {
+            Some(Self {
+                numerator: (self.numerator / g1).checked_mul(other.numerator / g2)?,
+                denominator: (self.denominator / g2).checked_mul(other.denominator / g1)?,
+            })
+        })();
+        // i64::MIN / -1 can't happen: g1 and g2 are positive.
+        narrow.map_or_else(|| self.checked_mul(other), Ok)
+    }
+
+    /// `self / other`, as [`Rational::checked_div`], by a quicker path: multiplying by `other` turned over.
+    ///
+    /// # Errors
+    ///
+    /// `DivisionByZero` when `other` is zero; `TooBig` when the result's parts don't fit in 64 bits.
+    pub fn divide_quickly(self, other: Self) -> Result<Self, RationalError> {
+        if other.numerator == 0 {
+            return Err(RationalError::DivisionByZero);
+        }
+        if self.numerator == 0 {
+            return Ok(Self::from_int(0));
+        }
+        // a/b ÷ c/d = (a·d)/(b·c); cancel a with c and b with d first.
+        let g1 = gcd_euclid(
+            self.numerator.unsigned_abs(),
+            other.numerator.unsigned_abs(),
+        )
+        .cast_signed();
+        let g2 = gcd_euclid(
+            self.denominator.unsigned_abs(),
+            other.denominator.unsigned_abs(),
+        )
+        .cast_signed();
+        let narrow = (|| {
+            let numerator = (self.numerator / g1).checked_mul(other.denominator / g2)?;
+            let denominator = (self.denominator / g2).checked_mul(other.numerator / g1)?;
+            if denominator < 0 {
+                return Some(Self {
+                    numerator: numerator.checked_neg()?,
+                    denominator: denominator.checked_neg()?,
+                });
+            }
+            Some(Self {
+                numerator,
+                denominator,
+            })
+        })();
+        narrow.map_or_else(|| self.checked_div(other), Ok)
+    }
+
     /// The exact decimal form, such as `3.5`, `-0.25` or `2`, or `None` when there is none, as for 1/3.
     #[must_use]
     pub fn to_decimal(self) -> Option<String> {
@@ -176,6 +312,14 @@ impl fmt::Display for Rational {
     }
 }
 
+/// Euclid's GCD on 64 bits: one-instruction divisions, few of them for the small numbers most programs use.
+fn gcd_euclid(mut a: u64, mut b: u64) -> u64 {
+    while b != 0 {
+        (a, b) = (b, a % b);
+    }
+    a
+}
+
 fn gcd(mut a: u128, mut b: u128) -> u128 {
     while b != 0 {
         (a, b) = (b, a % b);
@@ -232,6 +376,61 @@ mod tests {
         assert_eq!(Rational::from_int(2).to_decimal().as_deref(), Some("2"));
         assert_eq!(r(1, 3).to_decimal(), None);
         assert_eq!(r(1, 6).to_decimal(), None);
+    }
+
+    /// The quick paths must give exactly what the simple ones give, extremes included.
+    #[test]
+    fn quick_paths_match_the_simple_ones() {
+        let mut state = 0x1234_5678_9ABC_DEF1_u64;
+        let mut next = move || {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            state
+        };
+        let edges = [
+            0,
+            1,
+            -1,
+            2,
+            3,
+            10,
+            100,
+            i64::MAX,
+            i64::MIN,
+            i64::MAX - 1,
+            i64::MIN + 1,
+            1 << 32,
+            1 << 62,
+        ];
+        let pick = move |next: &mut dyn FnMut() -> u64| -> i64 {
+            match next() % 4 {
+                0 => edges[usize::try_from(next() % edges.len() as u64).unwrap()],
+                1 => i64::try_from(next() % 1000).unwrap() - 500,
+                2 => i64::try_from(next() % 100_000_000).unwrap() - 50_000_000,
+                _ => next().cast_signed(),
+            }
+        };
+        for _ in 0..2_000_000 {
+            let numerator_a = pick(&mut next);
+            let numerator_b = pick(&mut next);
+            let denominator_a = pick(&mut next);
+            let denominator_b = if next() % 3 == 0 {
+                denominator_a
+            } else {
+                pick(&mut next)
+            };
+            let (Ok(x), Ok(y)) = (
+                Rational::new(numerator_a.into(), denominator_a.into()),
+                Rational::new(numerator_b.into(), denominator_b.into()),
+            ) else {
+                continue;
+            };
+            assert_eq!(x.add_quickly(y), x.checked_add(y), "{x} + {y}");
+            assert_eq!(x.subtract_quickly(y), x.checked_sub(y), "{x} - {y}");
+            assert_eq!(x.multiply_quickly(y), x.checked_mul(y), "{x} * {y}");
+            assert_eq!(x.divide_quickly(y), x.checked_div(y), "{x} / {y}");
+        }
     }
 
     #[test]

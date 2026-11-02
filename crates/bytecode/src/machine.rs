@@ -303,28 +303,28 @@ impl Machine<'_> {
             Op::AddRationals { dst, a, b, at } => {
                 let result = self
                     .rational(*a)
-                    .checked_add(self.rational(*b))
+                    .add_quickly(self.rational(*b))
                     .map_err(|error| rational_error(error, *at))?;
                 self.set_rational(*dst, result);
             }
             Op::SubtractRationals { dst, a, b, at } => {
                 let result = self
                     .rational(*a)
-                    .checked_sub(self.rational(*b))
+                    .subtract_quickly(self.rational(*b))
                     .map_err(|error| rational_error(error, *at))?;
                 self.set_rational(*dst, result);
             }
             Op::MultiplyRationals { dst, a, b, at } => {
                 let result = self
                     .rational(*a)
-                    .checked_mul(self.rational(*b))
+                    .multiply_quickly(self.rational(*b))
                     .map_err(|error| rational_error(error, *at))?;
                 self.set_rational(*dst, result);
             }
             Op::DivideRationals { dst, a, b, at } => {
                 let result = self
                     .rational(*a)
-                    .checked_div(self.rational(*b))
+                    .divide_quickly(self.rational(*b))
                     .map_err(|error| rational_error(error, *at))?;
                 self.set_rational(*dst, result);
             }

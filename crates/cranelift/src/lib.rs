@@ -24,6 +24,7 @@ use cranelift_module::{FuncId, Linkage, Module};
 use redstone_bytecode::op::{Op, Reg};
 use redstone_bytecode::{Code, CompiledLoop, LoopCompiler};
 use redstone_front::ir::{Comparison, Counting};
+use redstone_runtime::Rational;
 
 /// Compiles hot loops with Cranelift. It owns the machine code, so it must outlive every run it serves.
 pub struct Cranelift {
@@ -36,7 +37,7 @@ pub struct Cranelift {
 
 /// The helpers compiled loops call, as declared in the module.
 struct Helpers {
-    rational_set: FuncId,
+    rational_copy: FuncId,
     rational_move: FuncId,
     rational_from_int: FuncId,
     rational_divide_ints: FuncId,
@@ -59,7 +60,7 @@ impl Cranelift {
             .ok()?;
         let mut builder = JITBuilder::with_isa(isa, cranelift_module::default_libcall_names());
         let symbols: [(&str, *const u8); 9] = [
-            ("redstone_rational_set", calls::rational_set as *const u8),
+            ("redstone_rational_copy", calls::rational_copy as *const u8),
             ("redstone_rational_move", calls::rational_move as *const u8),
             (
                 "redstone_rational_from_int",
@@ -101,7 +102,7 @@ impl Cranelift {
         };
         let i64 = types::I64;
         let helpers = Helpers {
-            rational_set: declare("redstone_rational_set", &[pointer, i64, i64, i64, i64])?,
+            rational_copy: declare("redstone_rational_copy", &[pointer, i64, i64, pointer])?,
             rational_move: declare("redstone_rational_move", &[pointer, i64, i64, i64])?,
             rational_from_int: declare("redstone_rational_from_int", &[pointer, i64, i64, i64])?,
             rational_divide_ints: declare(
@@ -159,7 +160,15 @@ impl LoopCompiler for Cranelift {
         let frontend_config = self.module.isa().frontend_config();
         let helpers = Imported::new(&self.helpers, &mut self.module, &mut self.context.func);
         let mut builder = FunctionBuilder::new(&mut self.context.func, &mut self.builder_context);
-        let built = LoopBuilder::build(&mut builder, &helpers, ops, head, pointer_type);
+        // The loop's rational constants, reduced once here; its code copies them instead of making them again.
+        let constants: Box<[Rational]> = ops
+            .iter()
+            .filter_map(|op| match op {
+                Op::RationalConstant { value, .. } => Some(*value),
+                _ => None,
+            })
+            .collect();
+        let built = LoopBuilder::build(&mut builder, &helpers, ops, head, pointer_type, &constants);
         builder.seal_all_blocks();
         builder.finalize(frontend_config);
         if built.is_none() {
@@ -173,6 +182,7 @@ impl LoopCompiler for Cranelift {
         let function = self.module.get_finalized_function(id);
         Some(Box::new(calls::Compiled::new(
             function,
+            constants,
             code.ints,
             code.rationals,
             code.objects,
@@ -223,7 +233,7 @@ fn supported(op: &Op, code: &Code) -> bool {
 
 /// The helpers, imported into the function being built.
 struct Imported {
-    rational_set: FuncRef,
+    rational_copy: FuncRef,
     rational_move: FuncRef,
     rational_from_int: FuncRef,
     rational_divide_ints: FuncRef,
@@ -242,7 +252,7 @@ impl Imported {
     ) -> Self {
         let mut import = |id: FuncId| module.declare_func_in_func(id, func);
         Self {
-            rational_set: import(helpers.rational_set),
+            rational_copy: import(helpers.rational_copy),
             rational_move: import(helpers.rational_move),
             rational_from_int: import(helpers.rational_from_int),
             rational_divide_ints: import(helpers.rational_divide_ints),
@@ -273,6 +283,10 @@ struct LoopBuilder<'b, 'f> {
     objects: Value,
     objects_length: Value,
     out: Value,
+    pointer_type: types::Type,
+    /// Where each rational constant is, in the order the loop's instructions use them.
+    constants: Vec<i64>,
+    next_constant: usize,
 }
 
 impl<'b, 'f> LoopBuilder<'b, 'f> {
@@ -282,6 +296,7 @@ impl<'b, 'f> LoopBuilder<'b, 'f> {
         ops: &[Op],
         head: usize,
         pointer_type: types::Type,
+        constants: &[Rational],
     ) -> Option<()> {
         let entry = builder.create_block();
         builder.append_block_params_for_function_params(entry);
@@ -328,6 +343,12 @@ impl<'b, 'f> LoopBuilder<'b, 'f> {
             objects,
             objects_length,
             out,
+            pointer_type,
+            constants: constants
+                .iter()
+                .map(|constant| i64::try_from(std::ptr::from_ref(constant).addr()).ok())
+                .collect::<Option<_>>()?,
+            next_constant: 0,
         };
         for (at, op) in ops.iter().enumerate() {
             let block = *loop_builder.blocks.get(at)?;
@@ -521,15 +542,17 @@ impl<'b, 'f> LoopBuilder<'b, 'f> {
     fn rational_or_table(&mut self, at: usize, op: &Op) -> Option<()> {
         let (rationals, rationals_length) = (self.rationals, self.rationals_length);
         match op {
-            Op::RationalConstant { dst, value } => {
+            Op::RationalConstant { dst, .. } => {
+                let address = *self.constants.get(self.next_constant)?;
+                self.next_constant += 1;
+                let source = self.builder.ins().iconst(self.pointer_type, address);
                 let args = [
                     rationals,
                     rationals_length,
                     self.constant(i64::from(*dst)),
-                    self.constant(value.numerator()),
-                    self.constant(value.denominator()),
+                    source,
                 ];
-                self.call(self.helpers.rational_set, &args)?;
+                self.call(self.helpers.rational_copy, &args)?;
             }
             Op::MoveRational { dst, src } => {
                 let args = [

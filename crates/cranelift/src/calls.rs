@@ -25,6 +25,8 @@ pub(crate) type LoopFunction =
 /// A compiled loop and the register file sizes it was compiled for.
 pub(crate) struct Compiled {
     function: LoopFunction,
+    /// The loop's rational constants, which its code copies from; owned here so they live as long as the code.
+    _constants: Box<[Rational]>,
     ints: usize,
     rationals: usize,
     objects: usize,
@@ -36,6 +38,7 @@ impl Compiled {
     /// signature, compiled for register files of these sizes.
     pub(crate) fn new(
         pointer: *const u8,
+        constants: Box<[Rational]>,
         ints: usize,
         rationals: usize,
         objects: usize,
@@ -47,6 +50,7 @@ impl Compiled {
         let function = unsafe { std::mem::transmute::<*const u8, LoopFunction>(pointer) };
         Self {
             function,
+            _constants: constants,
             ints,
             rationals,
             objects,
@@ -105,24 +109,22 @@ fn in_order(objects: &[Value], table: i64) -> Option<&[Value]> {
     }
 }
 
-/// `rationals[dst] = numerator / denominator`, already reduced.
-pub(crate) extern "C" fn rational_set(
+/// `rationals[dst] = *constant`, a constant from the compiled loop's own pool.
+pub(crate) extern "C" fn rational_copy(
     rationals_pointer: *mut Rational,
     rationals_length: i64,
     dst: i64,
-    numerator: i64,
-    denominator: i64,
+    constant: *const Rational,
 ) -> i64 {
-    let file = rationals(rationals_pointer, rationals_length);
-    match (
-        Rational::new(numerator.into(), denominator.into()),
-        file.get_mut(index(dst)),
-    ) {
-        (Ok(value), Some(slot)) => {
+    // SAFETY: `constant` points into the pool of the compiled loop calling this, built before its code and kept
+    // alive with it in `Compiled`, so it points at a valid, aligned `Rational`.
+    let value = unsafe { constant.read() };
+    match rationals(rationals_pointer, rationals_length).get_mut(index(dst)) {
+        Some(slot) => {
             *slot = value;
             0
         }
-        _ => 1,
+        None => 1,
     }
 }
 
@@ -196,10 +198,10 @@ pub(crate) extern "C" fn rational_arithmetic(
         return 1;
     };
     let result = match op {
-        0 => left.checked_add(right),
-        1 => left.checked_sub(right),
-        2 => left.checked_mul(right),
-        3 => left.checked_div(right),
+        0 => left.add_quickly(right),
+        1 => left.subtract_quickly(right),
+        2 => left.multiply_quickly(right),
+        3 => left.divide_quickly(right),
         _ => return 1,
     };
     match (result, file.get_mut(index(dst))) {
