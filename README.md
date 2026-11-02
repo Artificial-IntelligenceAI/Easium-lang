@@ -1,5 +1,7 @@
 # Easium
 
+> **Abandoned.** Easium is no longer being worked on. Reason: ifykyk (D59).
+
 A friendly language, like Ruby: for people who want to make things without getting into a whole new world, with
 some programmer things for programmers who want to use it (D1). Small projects to show off, that can still grow
 (D2).

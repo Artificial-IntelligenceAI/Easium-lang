@@ -780,3 +780,10 @@ value, as `sum of` does (D56).
 
 Open: keyed tables (how many keys); text (how long it is, and in what: characters as people see them, or something
 else).
+
+## D59 — Easium is abandoned (2026-11-03)
+
+Owner: "Post on the hex looking GH repo that Easium is abandoned, and also say it in GH repo. Reason is "ifykyk"".
+
+Easium is abandoned. Reason: ifykyk. Everything above stays as it was decided and built; questions left open stay
+open.
