@@ -1,0 +1,5 @@
+not decided yet: d45_format_variable.redstone:2:19, line 2 column 19
+ 2 | show_using_format greeting
+   |                   ^^^^^^^^
+ what: a format that isn't written out as text right there
+ why:  this part of Redstone's design is still open (D45)

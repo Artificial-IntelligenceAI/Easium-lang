@@ -1,7 +1,9 @@
 //! Tokens to the program as written. Arithmetic follows school maths, with `()` to group (D17); where the order of
 //! two words is still open, the parser asks for parentheses instead of picking one (rule 2).
 
-use crate::ast::{BinaryOp, Branch, Counting, Expr, ExprKind, Program, Selector, Stmt, Stop};
+use crate::ast::{
+    BinaryOp, Branch, Counting, Expr, ExprKind, FormatPart, Program, Selector, Stmt, Stop,
+};
 use crate::diagnostic::{Diagnostic, Span};
 use crate::lexer::{Keyword, Token, TokenKind};
 
@@ -159,6 +161,33 @@ impl Parser<'_> {
         })
     }
 
+    // D45: `show_using_format "Hi <name>!"`.
+    fn show_format(&mut self) -> Result<Stmt, Diagnostic> {
+        self.advance();
+        let token = self.peek().clone();
+        let TokenKind::Text(text) = &token.kind else {
+            return Err(Diagnostic::not_decided(
+                "a format that isn't written out as text right there",
+                Some("D45"),
+                token.span,
+            ));
+        };
+        let parts = format_parts(text, token.span.start + 1)?;
+        self.advance();
+        let count = if let TokenKind::Count(count) = self.peek().kind {
+            self.advance();
+            count
+        } else {
+            1
+        };
+        let condition = self.trailing_if()?;
+        Ok(Stmt::ShowFormat {
+            parts,
+            count,
+            condition,
+        })
+    }
+
     // D38, D39: `until` or `until_before`, then the stop.
     fn until(&mut self, form: &str) -> Result<(bool, Stop), Diagnostic> {
         let inclusive = if self.next_word_is("until") {
@@ -299,6 +328,9 @@ impl Parser<'_> {
                 span: name_span,
                 condition,
             });
+        }
+        if name == "show_using_format" && !assigns {
+            return self.show_format();
         }
         if name == "repeat" && !assigns {
             return self.repeat(name_span);
@@ -966,6 +998,59 @@ impl Parser<'_> {
             span: open_span.to(close.span),
         })
     }
+}
+
+// D45: splits a format into text and `<name>` holes; `start` is where the text begins in the source.
+fn format_parts(text: &str, start: usize) -> Result<Vec<FormatPart>, Diagnostic> {
+    let mut parts = Vec::new();
+    let mut rest = text;
+    let mut offset = start;
+    while let Some(open) = rest.find(['<', '>']) {
+        let at = offset + open;
+        if rest[open..].starts_with('>') {
+            return Err(Diagnostic::not_decided(
+                "a `>` outside a hole in a format",
+                Some("D45"),
+                Span::new(at, at + 1),
+            ));
+        }
+        let Some(close) = rest[open..].find('>') else {
+            return Err(Diagnostic::not_decided(
+                "a `<` with no `>` in a format",
+                Some("D45"),
+                Span::new(at, at + 1),
+            ));
+        };
+        let name = &rest[open + 1..open + close];
+        let is_name = name
+            .chars()
+            .next()
+            .is_some_and(|first| first.is_ascii_alphabetic() || first == '_')
+            && name
+                .chars()
+                .all(|character| character.is_ascii_alphanumeric() || character == '_');
+        let hole_span = Span::new(at, at + close + 1);
+        if !is_name {
+            return Err(Diagnostic::not_decided(
+                "anything but a variable's name inside `< >`",
+                Some("D45"),
+                hole_span,
+            ));
+        }
+        if open > 0 {
+            parts.push(FormatPart::Text(rest[..open].to_owned()));
+        }
+        parts.push(FormatPart::Hole {
+            name: name.to_owned(),
+            span: Span::new(at + 1, at + close),
+        });
+        offset += open + close + 1;
+        rest = &rest[open + close + 1..];
+    }
+    if !rest.is_empty() {
+        parts.push(FormatPart::Text(rest.to_owned()));
+    }
+    Ok(parts)
 }
 
 fn binary(op: BinaryOp, op_span: Span, left: Expr, right: Expr) -> Expr {

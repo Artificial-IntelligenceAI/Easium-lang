@@ -591,3 +591,19 @@ default). Settles D43's open question.
 
 `bonus = 10 if lucky` is a mistake: a false test would leave `bonus` unmade for the lines after it. A variable is
 made first, then changed with `becomes … if`.
+
+## D45 — `show_using_format` (2026-11-02)
+
+Owner, asked how text is joined (redstone design claude offered `plus`, a word such as `joined_with`, or holes in the
+text such as `"Hi {name}!"`):
+
+```
+show_using_format "Hi <name>!"
+```
+
+`show_using_format` shows text with holes: `<name>` is replaced by the value of the variable `name`, shown as `show`
+would show it. Plain `show` never fills holes, so `show "Hi <name>!"` shows the text as written.
+
+Open: what may go inside `< >` besides a variable's name (`<age plus 1>`, `<value of "Ada" in ages>`); writing a
+literal `<` or `>` in a format; a format held in a variable; text with holes outside `show` (to keep, or to join);
+whether D26's `plus` on text is still wanted.

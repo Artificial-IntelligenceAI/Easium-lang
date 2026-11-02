@@ -1,0 +1,5 @@
+stopped: d45_unknown_name.redstone:1:24, line 1 column 24
+ 1 | show_using_format "Hi <nmae>"
+   |                        ^^^^
+ what: there's no `nmae`
+ why:  a variable has to be made with `=` before it's used

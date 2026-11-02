@@ -1,0 +1,2 @@
+third = 1 divided_by 3
+show_using_format "A third is <third>"

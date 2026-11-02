@@ -1,0 +1,11 @@
+name = "Ada"
+age = 36
+half = 7 divided_by 2
+adult = true
+show_using_format "Hi <name>!"
+show_using_format "<name> is <age>, adult: <adult>, half of 7 is <half>"
+show_using_format "<name><name>"
+show_using_format "No holes here"
+show_using_format "Hey <name>" 2x
+show_using_format "never" if false
+show "Hi <name>!"

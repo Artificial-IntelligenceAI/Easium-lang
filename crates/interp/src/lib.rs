@@ -6,7 +6,7 @@ use std::io::{BufRead, Write};
 use std::rc::Rc;
 
 use redstone_front::ir::{
-    Arithmetic, Comparison, Counting, Expr, ExprKind, Program, Selector, Stmt, Stop,
+    Arithmetic, Comparison, Counting, Expr, ExprKind, FormatPart, Program, Selector, Stmt, Stop,
 };
 use redstone_front::{Diagnostic, Span};
 use redstone_runtime::{Rational, RationalError, Table, Value};
@@ -96,6 +96,15 @@ impl Machine<'_> {
             } => {
                 if self.holds(condition.as_ref())? {
                     self.show_items(table, stop, *inclusive)?;
+                }
+            }
+            Stmt::ShowFormat {
+                parts,
+                count,
+                condition,
+            } => {
+                if self.holds(condition.as_ref())? {
+                    self.show_format(parts, *count)?;
                 }
             }
             Stmt::RepeatTimes { .. } | Stmt::RepeatUntil { .. } | Stmt::RepeatForever { .. } => {
@@ -213,15 +222,26 @@ impl Machine<'_> {
         }
     }
 
+    // D45: fills each hole as `show` would show its value.
+    fn show_format(&mut self, parts: &[FormatPart], count: i64) -> Result<(), Diagnostic> {
+        let mut text = String::new();
+        for part in parts {
+            match part {
+                FormatPart::Text(piece) => text.push_str(piece),
+                FormatPart::Hole(hole) => {
+                    let value = self.evaluate(hole)?;
+                    text.push_str(&shown_text(&value, hole.span)?);
+                }
+            }
+        }
+        for _ in 0..count {
+            self.write_shown(&Value::Text(Rc::from(text.as_str())), Span::new(0, 0))?;
+        }
+        Ok(())
+    }
+
     fn write_shown(&mut self, value: &Value, span: Span) -> Result<(), Diagnostic> {
-        // D7: how a rational with no exact decimal is shown is still open.
-        let text = value.show().ok_or_else(|| {
-            Diagnostic::not_decided(
-                "showing a rational with no exact decimal, like 1/3",
-                Some("D7"),
-                span,
-            )
-        })?;
+        let text = shown_text(value, span)?;
         writeln!(self.output, "{text}").map_err(|error| output_failed(&error, span))
     }
 
@@ -634,6 +654,17 @@ fn missing_index(index: i64, counting: Counting, length: usize, span: Span) -> D
     let last = i64::try_from(length).unwrap_or(i64::MAX) - 1 + first;
     Diagnostic::mistake(format!("there's no {word} {index} in this table"), span)
         .because(format!("this table has {word}s {first} to {last}"))
+}
+
+// D7: how a rational with no exact decimal is shown is still open.
+fn shown_text(value: &Value, span: Span) -> Result<String, Diagnostic> {
+    value.show().ok_or_else(|| {
+        Diagnostic::not_decided(
+            "showing a rational with no exact decimal, like 1/3",
+            Some("D7"),
+            span,
+        )
+    })
 }
 
 fn never_reached(span: Span) -> Diagnostic {

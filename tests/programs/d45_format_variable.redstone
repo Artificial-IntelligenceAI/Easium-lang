@@ -1,0 +1,2 @@
+greeting = "Hi <name>"
+show_using_format greeting

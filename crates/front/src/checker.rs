@@ -136,20 +136,12 @@ impl Checker {
                 stop,
                 inclusive,
                 condition,
-            } => {
-                let (table_ir, element) = self.items_table(table)?;
-                let stop = self.stop(stop, &element)?;
-                let condition = condition
-                    .as_ref()
-                    .map(|condition| self.condition(condition))
-                    .transpose()?;
-                Ok(ir::Stmt::ShowItems {
-                    table: table_ir,
-                    stop,
-                    inclusive: *inclusive,
-                    condition,
-                })
-            }
+            } => self.show_items(table, stop, *inclusive, condition.as_ref()),
+            ast::Stmt::ShowFormat {
+                parts,
+                count,
+                condition,
+            } => self.show_format(parts, *count, condition.as_ref()),
             ast::Stmt::RepeatTimes { count, body } => self.repeat_times(count, body),
             ast::Stmt::RepeatForever { body } => Ok(ir::Stmt::RepeatForever {
                 body: self.loop_body(body)?,
@@ -231,6 +223,68 @@ impl Checker {
             .transpose()?;
         Ok(ir::Stmt::Show {
             value,
+            count,
+            condition,
+        })
+    }
+
+    // D38
+    fn show_items(
+        &mut self,
+        table: &ast::Expr,
+        stop: &ast::Stop,
+        inclusive: bool,
+        condition: Option<&ast::Expr>,
+    ) -> Result<ir::Stmt, Diagnostic> {
+        let (table_ir, element) = self.items_table(table)?;
+        let stop = self.stop(stop, &element)?;
+        let condition = condition
+            .map(|condition| self.condition(condition))
+            .transpose()?;
+        Ok(ir::Stmt::ShowItems {
+            table: table_ir,
+            stop,
+            inclusive,
+            condition,
+        })
+    }
+
+    // D45
+    fn show_format(
+        &mut self,
+        parts: &[ast::FormatPart],
+        count: i64,
+        condition: Option<&ast::Expr>,
+    ) -> Result<ir::Stmt, Diagnostic> {
+        let mut checked = Vec::with_capacity(parts.len());
+        for part in parts {
+            checked.push(match part {
+                ast::FormatPart::Text(text) => ir::FormatPart::Text(Rc::from(text.as_str())),
+                ast::FormatPart::Hole { name, span } => {
+                    let variable = self.variable(
+                        name,
+                        *span,
+                        "a variable has to be made with `=` before it's used",
+                    )?;
+                    if variable.ty.is_table() {
+                        return Err(Diagnostic::not_decided(
+                            "showing a table",
+                            Some("D32"),
+                            *span,
+                        ));
+                    }
+                    ir::FormatPart::Hole(ir::Expr {
+                        kind: ir::ExprKind::Load(variable.slot),
+                        span: *span,
+                    })
+                }
+            });
+        }
+        let condition = condition
+            .map(|condition| self.condition(condition))
+            .transpose()?;
+        Ok(ir::Stmt::ShowFormat {
+            parts: checked,
             count,
             condition,
         })

@@ -45,6 +45,15 @@ pub enum Stmt {
         /// Shown only when this is true.
         condition: Option<Expr>,
     },
+    /// `show_using_format "Hi <name>!"`: shows text with its holes filled (D45).
+    ShowFormat {
+        /// The text between holes, and the holes.
+        parts: Vec<FormatPart>,
+        /// How many times (D40).
+        count: i64,
+        /// Shown only when this is true.
+        condition: Option<Expr>,
+    },
     /// `value at position 1 in scores becomes 95`: changes an item in a table held by a variable (D35).
     ChangeItem {
         /// The variable holding the table.
@@ -180,6 +189,20 @@ pub enum ExprKind {
         table: Box<Expr>,
         /// The key.
         key: Box<Expr>,
+    },
+}
+
+/// A piece of a format: text as written, or a hole (D45).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum FormatPart {
+    /// Text shown as written.
+    Text(String),
+    /// `<name>`: the variable's value.
+    Hole {
+        /// The variable's name.
+        name: String,
+        /// Where the name is.
+        span: Span,
     },
 }
 

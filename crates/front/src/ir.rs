@@ -141,6 +141,15 @@ pub enum Stmt {
         /// The block.
         body: Vec<Stmt>,
     },
+    /// Shows text with its holes filled (D45).
+    ShowFormat {
+        /// The text between holes, and the holes.
+        parts: Vec<FormatPart>,
+        /// How many times (D40).
+        count: i64,
+        /// Shown only when this is true.
+        condition: Option<Expr>,
+    },
     /// Changes one item of the table in a slot (D35).
     ChangeItem {
         /// The slot holding the table.
@@ -161,6 +170,15 @@ pub enum Stmt {
         /// The `else` block; empty when there is none.
         otherwise: Vec<Stmt>,
     },
+}
+
+/// A piece of a format, checked (D45).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum FormatPart {
+    /// Text shown as written.
+    Text(Rc<str>),
+    /// A variable's value, shown as `show` would.
+    Hole(Expr),
 }
 
 /// Where `show items in … until` stops, checked (D38).
