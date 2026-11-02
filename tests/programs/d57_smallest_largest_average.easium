@@ -1,0 +1,15 @@
+scores = 90, 65, 70, 65
+show smallest value in scores
+show largest value in scores
+show average value in scores
+halves = 0.5, 0.25, 1.5
+show smallest value in halves
+show largest value in halves
+show average value in halves
+show whether average value in scores greater_than 70
+show_using_format "Range: <smallest value in scores> to <largest value in scores>"
+show largest value in scores minus smallest value in scores
+ones = 1, 2
+show average value in ones
+smallest = 3
+show smallest

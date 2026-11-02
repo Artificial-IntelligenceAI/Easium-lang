@@ -1,0 +1,4 @@
+stopped: d57_booleans.easium:2:23, line 2 column 23
+ 2 | show largest value in flags
+   |                       ^^^^^
+ what: `largest value in` works on numbers, but this table holds booleans

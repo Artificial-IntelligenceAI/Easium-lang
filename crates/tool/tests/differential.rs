@@ -57,7 +57,17 @@ impl Generator {
 
     fn int(&mut self, scope: Scope, depth: u32) -> String {
         if depth == 0 || self.random.chance(3) {
-            let mut leaves = vec!["a", "b", "c", "small", "small", "position", "sum of t"];
+            let mut leaves = vec![
+                "a",
+                "b",
+                "c",
+                "small",
+                "small",
+                "position",
+                "sum of t",
+                "smallest value in t",
+                "largest value in t",
+            ];
             if scope.in_repeat {
                 leaves.push("current_round");
             }
@@ -93,7 +103,15 @@ impl Generator {
                 1 => "s".to_owned(),
                 2 => self
                     .random
-                    .pick(&["0.5", "0.25", "1.5", "0.1", "2.0", "0.125"])
+                    .pick(&[
+                        "0.5",
+                        "0.25",
+                        "1.5",
+                        "0.1",
+                        "2.0",
+                        "0.125",
+                        "(average value in t)",
+                    ])
                     .to_owned(),
                 _ => format!(
                     "({} divided_by {})",

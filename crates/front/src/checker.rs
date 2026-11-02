@@ -4,7 +4,7 @@
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
-use crate::ast::{self, BinaryOp, ExprKind};
+use crate::ast::{self, BinaryOp, ExprKind, Summary};
 use crate::diagnostic::{Diagnostic, Span};
 use crate::ir::{self, Arithmetic, Comparison, Type};
 
@@ -736,7 +736,7 @@ impl Checker {
                 counting,
             } => self.read_position(table, index, *counting)?,
             ExprKind::ReadKey { table, key } => self.read_key(table, key)?,
-            ExprKind::Sum(table) => self.sum(table)?,
+            ExprKind::Summary(summary, table) => self.summary(*summary, table)?,
         };
         Ok((
             ir::Expr {
@@ -798,38 +798,63 @@ impl Checker {
         }
     }
 
-    // D56: `sum of` adds up an in-order table of numbers, giving the numbers' type.
-    fn sum(&mut self, table: &ast::Expr) -> Result<(ir::ExprKind, Type), Diagnostic> {
+    // D56, D57: a summary of an in-order table of numbers. Sums, smallest and largest have the numbers' type; an
+    // average is a rational, as `divided_by` gives (D7).
+    fn summary(
+        &mut self,
+        summary: Summary,
+        table: &ast::Expr,
+    ) -> Result<(ir::ExprKind, Type), Diagnostic> {
+        let words = summary.words();
         let (checked, ty) = self.expression(table)?;
         let element = match &ty {
             Type::InOrder(element) => (**element).clone(),
             Type::Keyed(..) => {
                 return Err(Diagnostic::not_decided(
-                    "summing a keyed table",
-                    Some("D56"),
+                    format!("`{words}` on a keyed table"),
+                    Some(if summary == Summary::Sum {
+                        "D56"
+                    } else {
+                        "D57"
+                    }),
                     table.span,
                 ));
             }
             other => {
                 return Err(Diagnostic::mistake(
                     format!(
-                        "`sum of` needs a table of numbers, but this is {}",
+                        "`{words}` needs a table of numbers, but this is {}",
                         other.described()
                     ),
                     table.span,
                 ));
             }
         };
-        if !matches!(element, Type::Int | Type::Rational) {
-            return Err(Diagnostic::mistake(
-                format!(
-                    "`sum of` adds numbers, but this table holds {}",
-                    element.plural()
-                ),
-                table.span,
-            ));
+        match element {
+            Type::Int | Type::Rational => {}
+            Type::Text if matches!(summary, Summary::Smallest | Summary::Largest) => {
+                return Err(Diagnostic::not_decided(
+                    "ordering text",
+                    Some("D18"),
+                    table.span,
+                ));
+            }
+            other => {
+                return Err(Diagnostic::mistake(
+                    format!(
+                        "`{words}` works on numbers, but this table holds {}",
+                        other.plural()
+                    ),
+                    table.span,
+                ));
+            }
         }
-        Ok((ir::ExprKind::Sum(Box::new(checked)), element))
+        let result = if summary == Summary::Average {
+            Type::Rational
+        } else {
+            element
+        };
+        Ok((ir::ExprKind::Summary(summary, Box::new(checked)), result))
     }
 
     // D34

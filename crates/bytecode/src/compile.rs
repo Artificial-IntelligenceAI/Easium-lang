@@ -769,7 +769,7 @@ impl Compiler {
             | ExprKind::Keyed(..)
             | ExprKind::ReadPosition { .. }
             | ExprKind::ReadKey { .. }
-            | ExprKind::Sum(..) => self.table(expression, into),
+            | ExprKind::Summary(..) => self.table(expression, into),
         }
     }
 
@@ -1006,10 +1006,11 @@ impl Compiler {
                 });
                 Ok(dst)
             }
-            ExprKind::Sum(table) => {
+            ExprKind::Summary(summary, table) => {
                 let table_reg = self.object(table)?;
                 let dst = self.destination(into, ty);
-                self.emit(Op::Sum {
+                self.emit(Op::Summary {
+                    summary: *summary,
                     dst,
                     table: table_reg,
                     at,

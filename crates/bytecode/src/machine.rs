@@ -5,7 +5,7 @@ use std::cmp::Ordering;
 use std::io::{BufRead, Write};
 use std::rc::Rc;
 
-use easium_front::ir::{Comparison, Counting};
+use easium_front::ir::{Comparison, Counting, Summary};
 use easium_front::{Diagnostic, Span};
 use easium_runtime::{Rational, RationalError, Table, Value};
 
@@ -602,34 +602,15 @@ impl Machine<'_> {
                     self.write_line(&text, *at)?;
                 }
             }
-            // D56
-            Op::Sum { dst, table, at } => {
-                let total = match *dst {
-                    Reg::Int(_) => {
-                        let mut total: i64 = 0;
-                        for item in self.in_order(*table, *at)? {
-                            let Value::Int(item) = item else {
-                                return Err(type_bug(*at));
-                            };
-                            total = total.checked_add(*item).ok_or_else(|| overflow(*at))?;
-                        }
-                        Value::Int(total)
-                    }
-                    Reg::Rational(_) => {
-                        let mut total = Rational::from_int(0);
-                        for item in self.in_order(*table, *at)? {
-                            let Value::Rational(item) = item else {
-                                return Err(type_bug(*at));
-                            };
-                            total = total
-                                .add_quickly(*item)
-                                .map_err(|error| rational_error(error, *at))?;
-                        }
-                        Value::Rational(total)
-                    }
-                    Reg::Boolean(_) | Reg::Object(_) => return Err(type_bug(*at)),
-                };
-                self.store(*dst, total, *at)?;
+            // D56, D57
+            Op::Summary {
+                summary,
+                dst,
+                table,
+                at,
+            } => {
+                let result = summarize(*summary, self.in_order(*table, *at)?, *at)?;
+                self.store(*dst, result, *at)?;
             }
             Op::CheckCount { src, at } => {
                 if self.int(*src) < 0 {
@@ -696,6 +677,67 @@ fn compared(op: Comparison, ordering: Ordering) -> bool {
 #[cold]
 fn item_bug() -> Diagnostic {
     Diagnostic::bug("an item past the end of a table", Span::new(0, 0))
+}
+
+/// A sum, smallest, largest or average of an in-order table of numbers (D56, D57), with the reference's errors.
+fn summarize(summary: Summary, values: &[Value], at: Span) -> Result<Value, Diagnostic> {
+    match summary {
+        Summary::Sum => add_up(values, at),
+        Summary::Smallest | Summary::Largest => {
+            let wanted = if summary == Summary::Smallest {
+                Ordering::Less
+            } else {
+                Ordering::Greater
+            };
+            let mut best = values.first().ok_or_else(|| type_bug(at))?;
+            for item in values {
+                let ordering = match (item, best) {
+                    (Value::Int(item), Value::Int(best)) => item.cmp(best),
+                    (Value::Rational(item), Value::Rational(best)) => item.cmp(best),
+                    _ => return Err(type_bug(at)),
+                };
+                if ordering == wanted {
+                    best = item;
+                }
+            }
+            Ok(best.clone())
+        }
+        Summary::Average => {
+            let count = Rational::from_int(i64::try_from(values.len()).map_err(|_| type_bug(at))?);
+            let total = match add_up(values, at)? {
+                Value::Int(total) => Rational::from_int(total),
+                Value::Rational(total) => total,
+                _ => return Err(type_bug(at)),
+            };
+            total
+                .divide_quickly(count)
+                .map(Value::Rational)
+                .map_err(|error| rational_error(error, at))
+        }
+    }
+}
+
+fn add_up(values: &[Value], at: Span) -> Result<Value, Diagnostic> {
+    if let Some(Value::Rational(_)) = values.first() {
+        let mut total = Rational::from_int(0);
+        for item in values {
+            let Value::Rational(item) = item else {
+                return Err(type_bug(at));
+            };
+            total = total
+                .add_quickly(*item)
+                .map_err(|error| rational_error(error, at))?;
+        }
+        return Ok(Value::Rational(total));
+    }
+    let mut total: i64 = 0;
+    for item in values {
+        let Value::Int(item) = item else {
+            return Err(type_bug(at));
+        };
+        total = total.checked_add(*item).ok_or_else(|| overflow(at))?;
+    }
+    Ok(Value::Int(total))
 }
 
 #[cold]

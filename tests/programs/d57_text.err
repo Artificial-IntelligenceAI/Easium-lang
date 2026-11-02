@@ -1,0 +1,5 @@
+not decided yet: d57_text.easium:2:24, line 2 column 24
+ 2 | show smallest value in names
+   |                        ^^^^^
+ what: ordering text
+ why:  this part of Easium's design is still open (D18)

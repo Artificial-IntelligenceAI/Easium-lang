@@ -7,6 +7,7 @@ use std::rc::Rc;
 
 use easium_front::ir::{
     Arithmetic, Comparison, Counting, Expr, ExprKind, FormatPart, Program, Selector, Stmt, Stop,
+    Summary,
 };
 use easium_front::{Diagnostic, Span};
 use easium_runtime::{Rational, RationalError, Table, Value};
@@ -480,7 +481,7 @@ impl Machine<'_> {
                 counting,
             } => self.read_position(table, index, *counting, span),
             ExprKind::ReadKey { table, key } => self.read_key(table, key, span),
-            ExprKind::Sum(table) => self.sum(table, span),
+            ExprKind::Summary(summary, table) => self.summary(*summary, table, span),
         }
     }
 
@@ -543,30 +544,47 @@ impl Machine<'_> {
             })
     }
 
-    // D56: adds up from the first item to the last.
-    fn sum(&mut self, table: &Expr, span: Span) -> Result<Value, Diagnostic> {
+    // D56, D57: goes through the items from the first to the last.
+    fn summary(&mut self, summary: Summary, table: &Expr, span: Span) -> Result<Value, Diagnostic> {
         let Value::Table(contents) = self.evaluate(table)? else {
             return Err(type_bug(span));
         };
         let Table::InOrder(values) = &*contents else {
             return Err(type_bug(span));
         };
-        let mut total = match values.first() {
-            Some(Value::Rational(_)) => Value::Rational(Rational::from_int(0)),
-            _ => Value::Int(0),
-        };
-        for item in values {
-            total = match (total, item) {
-                (Value::Int(total), Value::Int(item)) => {
-                    Value::Int(int_arithmetic(Arithmetic::Plus, total, *item, span)?)
+        match summary {
+            Summary::Sum => sum(values, span),
+            Summary::Smallest | Summary::Largest => {
+                let mut best = values.first().cloned().ok_or_else(|| type_bug(span))?;
+                for item in values {
+                    let ordering = match (item, &best) {
+                        (Value::Int(item), Value::Int(best)) => item.cmp(best),
+                        (Value::Rational(item), Value::Rational(best)) => item.cmp(best),
+                        _ => return Err(type_bug(span)),
+                    };
+                    let better = if summary == Summary::Smallest {
+                        ordering == Ordering::Less
+                    } else {
+                        ordering == Ordering::Greater
+                    };
+                    if better {
+                        best = item.clone();
+                    }
                 }
-                (Value::Rational(total), Value::Rational(item)) => {
-                    Value::Rational(rational_arithmetic(Arithmetic::Plus, total, *item, span)?)
-                }
-                _ => return Err(type_bug(span)),
-            };
+                Ok(best)
+            }
+            // An average is the sum divided by how many there are, as a rational (D7).
+            Summary::Average => {
+                let count =
+                    Rational::from_int(i64::try_from(values.len()).map_err(|_| type_bug(span))?);
+                let total = match sum(values, span)? {
+                    Value::Int(total) => Rational::from_int(total),
+                    Value::Rational(total) => total,
+                    _ => return Err(type_bug(span)),
+                };
+                rational_arithmetic(Arithmetic::DividedBy, total, count, span).map(Value::Rational)
+            }
         }
-        Ok(total)
     }
 
     // D26: `ask` shows its prompt and waits for a line; what comes back is text.
@@ -594,6 +612,26 @@ impl Machine<'_> {
         let line = line.strip_suffix('\r').unwrap_or(line);
         Ok(Value::Text(Rc::from(line)))
     }
+}
+
+// D56: adds up from the first item to the last.
+fn sum(values: &[Value], span: Span) -> Result<Value, Diagnostic> {
+    let mut total = match values.first() {
+        Some(Value::Rational(_)) => Value::Rational(Rational::from_int(0)),
+        _ => Value::Int(0),
+    };
+    for item in values {
+        total = match (total, item) {
+            (Value::Int(total), Value::Int(item)) => {
+                Value::Int(int_arithmetic(Arithmetic::Plus, total, *item, span)?)
+            }
+            (Value::Rational(total), Value::Rational(item)) => {
+                Value::Rational(rational_arithmetic(Arithmetic::Plus, total, *item, span)?)
+            }
+            _ => return Err(type_bug(span)),
+        };
+    }
+    Ok(total)
 }
 
 // D7, D16

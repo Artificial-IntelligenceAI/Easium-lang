@@ -5,7 +5,7 @@ use std::rc::Rc;
 
 use easium_runtime::Rational;
 
-pub use crate::ast::Counting;
+pub use crate::ast::{Counting, Summary};
 use crate::diagnostic::Span;
 
 /// A checked program.
@@ -273,8 +273,8 @@ pub enum ExprKind {
         /// How the index counts.
         counting: Counting,
     },
-    /// Adds up an in-order table of ints or rationals (D56).
-    Sum(Box<Expr>),
+    /// Sums, or picks the smallest, the largest or the average of, an in-order table of numbers (D56, D57).
+    Summary(Summary, Box<Expr>),
     /// Reads a keyed table by key (D34).
     ReadKey {
         /// The table.

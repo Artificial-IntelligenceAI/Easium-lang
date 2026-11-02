@@ -3,7 +3,7 @@
 use std::rc::Rc;
 
 use easium_front::Span;
-use easium_front::ir::{Comparison, Counting};
+use easium_front::ir::{Comparison, Counting, Summary};
 use easium_runtime::{Rational, Value};
 
 /// A register, named by the file it lives in. Booleans live in the int file as 0 or 1.
@@ -176,8 +176,13 @@ pub enum Op {
         counting: Counting,
         at: Span,
     },
-    /// Adds up an in-order table of ints or rationals (D56).
-    Sum { dst: Reg, table: u32, at: Span },
+    /// Sums, or picks the smallest, largest or average of, an in-order table of numbers (D56, D57).
+    Summary {
+        summary: Summary,
+        dst: Reg,
+        table: u32,
+        at: Span,
+    },
     /// Reads a keyed table by key.
     ReadKey {
         dst: Reg,

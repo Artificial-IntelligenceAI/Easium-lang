@@ -2,7 +2,7 @@
 //! two words is still open, the parser asks for parentheses instead of picking one (rule 2).
 
 use crate::ast::{
-    BinaryOp, Branch, Counting, Expr, ExprKind, FormatPart, Program, Selector, Stmt, Stop,
+    BinaryOp, Branch, Counting, Expr, ExprKind, FormatPart, Program, Selector, Stmt, Stop, Summary,
 };
 use crate::diagnostic::{Diagnostic, Span};
 use crate::lexer::{Keyword, Token, TokenKind};
@@ -916,7 +916,26 @@ impl Parser<'_> {
                 let table = self.primary()?;
                 return Ok(Expr {
                     span: token.span.to(table.span),
-                    kind: ExprKind::Sum(Box::new(table)),
+                    kind: ExprKind::Summary(Summary::Sum, Box::new(table)),
+                });
+            }
+            // D57
+            TokenKind::Name(name)
+                if matches!(name.as_str(), "smallest" | "largest" | "average")
+                    && self.next_words_are(&["value", "in"]) =>
+            {
+                let summary = match name.as_str() {
+                    "smallest" => Summary::Smallest,
+                    "largest" => Summary::Largest,
+                    _ => Summary::Average,
+                };
+                self.advance();
+                self.advance();
+                self.advance();
+                let table = self.primary()?;
+                return Ok(Expr {
+                    span: token.span.to(table.span),
+                    kind: ExprKind::Summary(summary, Box::new(table)),
                 });
             }
             TokenKind::Name(name) if name == "value" && self.read_follows() => {
@@ -1014,6 +1033,13 @@ impl Parser<'_> {
             None => ExprKind::ReadKey { table, key: index },
         };
         Ok(Expr { kind, span })
+    }
+
+    /// Whether the words after the current token are `words`, in order.
+    fn next_words_are(&self, words: &[&str]) -> bool {
+        words.iter().enumerate().all(
+            |(at, word)| matches!(&self.peek_at(at + 1).kind, TokenKind::Name(found) if found == word),
+        )
     }
 
     fn next_word_is(&self, word: &str) -> bool {

@@ -183,8 +183,8 @@ pub enum ExprKind {
         /// How the index counts.
         counting: Counting,
     },
-    /// `sum of prices` (D56).
-    Sum(Box<Expr>),
+    /// `sum of prices` (D56), or `smallest value in scores` and the like (D57).
+    Summary(Summary, Box<Expr>),
     /// `value of "Ada" in ages` (D34).
     ReadKey {
         /// The table.
@@ -223,6 +223,32 @@ pub enum Selector {
     Index(Expr, Counting),
     /// A key in a keyed table.
     Key(Expr),
+}
+
+/// What a summary of an in-order table of numbers works out (D56, D57).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Summary {
+    /// `sum of`
+    Sum,
+    /// `smallest value in`
+    Smallest,
+    /// `largest value in`
+    Largest,
+    /// `average value in`
+    Average,
+}
+
+impl Summary {
+    /// How it is written.
+    #[must_use]
+    pub fn words(self) -> &'static str {
+        match self {
+            Summary::Sum => "sum of",
+            Summary::Smallest => "smallest value in",
+            Summary::Largest => "largest value in",
+            Summary::Average => "average value in",
+        }
+    }
 }
 
 /// How an index into an in-order table counts (D34).

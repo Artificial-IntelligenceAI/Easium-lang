@@ -743,3 +743,23 @@ int that overflows stops as any int overflow does (D7).
 
 Open: keyed tables (summing their values); the rest of the family proposed with it (`length of`, `smallest of`,
 `largest of`, `average of`); whether `sum` becomes a reserved word (for now `sum = 5` still makes a variable).
+
+## D57 — `smallest value in`, `largest value in`, `average value in` (2026-11-02)
+
+Owner, asked whether these take `_value` ("Is it `_value` for `smallest`, `largest`, and `average`?"), then "I mean,
+have we been saying `value`?" (D34's `value at position 1 in scores`, `value of "Ada" in ages`), then "yup" to
+easium design claude's reading: follow D34, and keep D56's `sum of` as it is.
+
+```
+scores = 90, 65, 70, 65
+show smallest value in scores     # 65
+show largest value in scores      # 90
+show average value in scores      # 72.5
+```
+
+- They work on in-order tables of numbers, like `sum of` (D56), and bind like a single value.
+- `smallest` and `largest` give a value of the table's type.
+- `average` gives a rational, as `divided_by` does (D7): the average of ints 1 and 2 is `1.5`.
+- By D5, `smallest value in` is three things, as `value at position` is: `smallest`, `largest` and `average` swap.
+
+Open: text (ordering text is open, D18); keyed tables; `length of`, the last of the family proposed with D56.

@@ -1,0 +1,5 @@
+not decided yet: d57_keyed.easium:4:23, line 4 column 23
+ 4 | show average value in ages
+   |                       ^^^^
+ what: `average value in` on a keyed table
+ why:  this part of Easium's design is still open (D57)
