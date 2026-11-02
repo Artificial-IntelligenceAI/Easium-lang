@@ -146,7 +146,11 @@ impl Machine<'_> {
     // D39, D41: a `stop` inside leaves the loop.
     fn repeat(&mut self, statement: &Stmt) -> Result<(), Diagnostic> {
         match statement {
-            Stmt::RepeatTimes { count, body } => {
+            Stmt::RepeatTimes {
+                count,
+                current_round,
+                body,
+            } => {
                 let Value::Int(times) = self.evaluate(count)? else {
                     return Err(type_bug(count.span));
                 };
@@ -157,7 +161,9 @@ impl Machine<'_> {
                         count.span,
                     ));
                 }
-                for _ in 0..times {
+                for round in 1..=times {
+                    // D50
+                    self.set_slot(*current_round, Value::Int(round), count.span)?;
                     if self.block(body)? == Flow::Stop {
                         break;
                     }

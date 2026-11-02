@@ -1,0 +1,5 @@
+stopped: d50_after_loop.redstone:4:6, line 4 column 6
+ 4 | show current_round
+   |      ^^^^^^^^^^^^^
+ what: there's no `current_round`
+ why:  a variable has to be made with `=` before it's used

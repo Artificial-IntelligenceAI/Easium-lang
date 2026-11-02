@@ -1,0 +1,4 @@
+repeat 1 times:
+    show 1
+end_of repeat
+show current_round

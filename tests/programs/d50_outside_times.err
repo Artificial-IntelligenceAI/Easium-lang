@@ -1,0 +1,5 @@
+not decided yet: d50_outside_times.redstone:2:10, line 2 column 10
+ 2 |     show current_round
+   |          ^^^^^^^^^^^^^
+ what: `current_round` outside `repeat … times`
+ why:  this part of Redstone's design is still open (D50)

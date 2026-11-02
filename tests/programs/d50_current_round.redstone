@@ -1,0 +1,14 @@
+repeat 3 times:
+    show_using_format "Round <current_round>"
+end_of repeat
+repeat 2 times:
+    outer = current_round
+    repeat 2 times:
+        show_using_format "<outer>.<current_round>"
+    end_of repeat
+end_of repeat
+total = 0
+repeat 4 times:
+    total becomes total plus current_round
+end_of repeat
+show total

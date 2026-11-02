@@ -519,9 +519,22 @@ impl Checker {
                 count.span,
             ));
         }
+        // D50: `current_round` counts the rounds from 1, in a scope of its own.
+        let current_round = self.slot_count;
+        self.slot_count += 1;
+        self.scopes.push(HashMap::from([(
+            "current_round".to_owned(),
+            Variable {
+                slot: current_round,
+                ty: Type::Int,
+            },
+        )]));
+        let body = self.loop_body(body);
+        self.scopes.pop();
         Ok(ir::Stmt::RepeatTimes {
             count: checked,
-            body: self.loop_body(body)?,
+            current_round,
+            body: body?,
         })
     }
 
@@ -643,6 +656,13 @@ impl Checker {
         }
         if self.ended.contains(name) {
             return Err(made_in_ended_block(name, span));
+        }
+        if name == "current_round" && self.loop_depth > 0 {
+            return Err(Diagnostic::not_decided(
+                "`current_round` outside `repeat … times`",
+                Some("D50"),
+                span,
+            ));
         }
         Err(Diagnostic::mistake(format!("there's no `{name}`"), span).because(why))
     }

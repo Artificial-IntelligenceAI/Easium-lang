@@ -108,6 +108,8 @@ pub enum Stmt {
     RepeatTimes {
         /// How many times.
         count: Expr,
+        /// The slot holding `current_round` (D50).
+        current_round: usize,
         /// The block.
         body: Vec<Stmt>,
     },

@@ -657,3 +657,18 @@ other values, shown as `show` would show them).
 - **`<--` replaces D48's `<-`.**
 - **Either side may be any value that `show` can show:** `"Age: " <-- age` is `"Age: 36"`. A rational with no exact
   decimal and a table stay open, as they are for `show` (D7, D32).
+
+## D50 — `current_round` in `repeat … times` (2026-11-02)
+
+Owner: "yes" (to redstone design claude's proposal, following D39's `current_item`).
+
+```
+repeat 3 times:
+    show_using_format "Round <current_round>"
+end_of repeat
+```
+
+Inside `repeat … times`, `current_round` is the round being run, counting from 1. As with `current_item`, an inner
+`repeat … times` hides the outer one's.
+
+Open: `current_round` in `repeat until` and `repeat forever`.
