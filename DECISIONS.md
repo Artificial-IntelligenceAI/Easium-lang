@@ -607,3 +607,15 @@ would show it. Plain `show` never fills holes, so `show "Hi <name>!"` shows the 
 Open: what may go inside `< >` besides a variable's name (`<age plus 1>`, `<value of "Ada" in ages>`); writing a
 literal `<` or `>` in a format; a format held in a variable; text with holes outside `show` (to keep, or to join);
 whether D26's `plus` on text is still wanted.
+
+## D46 — A hole takes any expression (2026-11-02)
+
+Owner: "yes" (to redstone design claude's question whether holes in `show_using_format` take expressions or only
+names). Settles D45's first open question.
+
+```
+show_using_format "Next year you'll be <age plus 1>"
+show_using_format "Ada is <value of "Ada" in ages>"
+```
+
+Inside a hole, text in quotes is text of its own and does not end the format.

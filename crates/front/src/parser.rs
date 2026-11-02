@@ -1000,57 +1000,83 @@ impl Parser<'_> {
     }
 }
 
-// D45: splits a format into text and `<name>` holes; `start` is where the text begins in the source.
+// D45, D46: splits a format into text and `<…>` holes, each hole an expression; `start` is where the text begins in
+// the source. A `"` inside a hole starts text of its own.
 fn format_parts(text: &str, start: usize) -> Result<Vec<FormatPart>, Diagnostic> {
     let mut parts = Vec::new();
-    let mut rest = text;
-    let mut offset = start;
-    while let Some(open) = rest.find(['<', '>']) {
-        let at = offset + open;
-        if rest[open..].starts_with('>') {
-            return Err(Diagnostic::not_decided(
-                "a `>` outside a hole in a format",
-                Some("D45"),
-                Span::new(at, at + 1),
-            ));
+    let mut piece = String::new();
+    let mut characters = text.char_indices();
+    while let Some((index, character)) = characters.next() {
+        let at = start + index;
+        match character {
+            '>' => {
+                return Err(Diagnostic::not_decided(
+                    "a `>` outside a hole in a format",
+                    Some("D45"),
+                    Span::new(at, at + 1),
+                ));
+            }
+            '<' => {
+                let mut in_inner_text = false;
+                let mut close = None;
+                for (inner_index, inner) in characters.by_ref() {
+                    match inner {
+                        '"' => in_inner_text = !in_inner_text,
+                        '>' if !in_inner_text => {
+                            close = Some(inner_index);
+                            break;
+                        }
+                        _ => {}
+                    }
+                }
+                let Some(close) = close else {
+                    return Err(Diagnostic::not_decided(
+                        "a `<` with no `>` in a format",
+                        Some("D45"),
+                        Span::new(at, at + 1),
+                    ));
+                };
+                let content = &text[index + 1..close];
+                if content.trim().is_empty() {
+                    return Err(Diagnostic::not_decided(
+                        "an empty hole",
+                        Some("D45"),
+                        Span::new(at, start + close + 1),
+                    ));
+                }
+                if !piece.is_empty() {
+                    parts.push(FormatPart::Text(std::mem::take(&mut piece)));
+                }
+                let tokens = crate::lexer::lex_at(content, at + 1)?;
+                parts.push(FormatPart::Hole(parse_hole(&tokens)?));
+            }
+            _ => piece.push(character),
         }
-        let Some(close) = rest[open..].find('>') else {
-            return Err(Diagnostic::not_decided(
-                "a `<` with no `>` in a format",
-                Some("D45"),
-                Span::new(at, at + 1),
-            ));
-        };
-        let name = &rest[open + 1..open + close];
-        let is_name = name
-            .chars()
-            .next()
-            .is_some_and(|first| first.is_ascii_alphabetic() || first == '_')
-            && name
-                .chars()
-                .all(|character| character.is_ascii_alphanumeric() || character == '_');
-        let hole_span = Span::new(at, at + close + 1);
-        if !is_name {
-            return Err(Diagnostic::not_decided(
-                "anything but a variable's name inside `< >`",
-                Some("D45"),
-                hole_span,
-            ));
-        }
-        if open > 0 {
-            parts.push(FormatPart::Text(rest[..open].to_owned()));
-        }
-        parts.push(FormatPart::Hole {
-            name: name.to_owned(),
-            span: Span::new(at + 1, at + close),
-        });
-        offset += open + close + 1;
-        rest = &rest[open + close + 1..];
     }
-    if !rest.is_empty() {
-        parts.push(FormatPart::Text(rest.to_owned()));
+    if !piece.is_empty() {
+        parts.push(FormatPart::Text(piece));
     }
     Ok(parts)
+}
+
+fn parse_hole(tokens: &[Token]) -> Result<Expr, Diagnostic> {
+    let mut parser = Parser {
+        tokens,
+        position: 0,
+    };
+    let expression = parser.expression()?;
+    let token = parser.peek();
+    if token.kind != TokenKind::End {
+        return Err(Diagnostic::mistake(
+            format!(
+                "expected the end of the hole, but found {}",
+                describe(&token.kind)
+            ),
+            token.span,
+        )
+        .because("a hole holds one value"));
+    }
+    Ok(expression)
 }
 
 fn binary(op: BinaryOp, op_span: Span, left: Expr, right: Expr) -> Expr {

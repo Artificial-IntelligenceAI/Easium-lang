@@ -1,0 +1,5 @@
+not decided yet: d46_empty_hole.redstone:1:23, line 1 column 23
+ 1 | show_using_format "Hi <>"
+   |                       ^^
+ what: an empty hole
+ why:  this part of Redstone's design is still open (D45)

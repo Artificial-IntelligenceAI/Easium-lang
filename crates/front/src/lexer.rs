@@ -153,6 +153,31 @@ pub struct Token {
 ///
 /// A character or spelling Redstone doesn't use, or one whose design is still open.
 pub fn lex(source: &str) -> Result<Vec<Token>, Diagnostic> {
+    lex_at(source, 0)
+}
+
+/// Splits `source`, which starts at byte `base` of the whole program, into tokens whose spans point into the whole
+/// program. Used for the expressions inside a format's holes (D46).
+///
+/// # Errors
+///
+/// As [`lex`].
+pub fn lex_at(source: &str, base: usize) -> Result<Vec<Token>, Diagnostic> {
+    let shift = |span: Span| Span::new(span.start + base, span.end + base);
+    let tokens = lex_whole(source).map_err(|mut diagnostic| {
+        diagnostic.span = shift(diagnostic.span);
+        diagnostic
+    })?;
+    Ok(tokens
+        .into_iter()
+        .map(|token| Token {
+            span: shift(token.span),
+            ..token
+        })
+        .collect())
+}
+
+fn lex_whole(source: &str) -> Result<Vec<Token>, Diagnostic> {
     let mut lexer = Lexer {
         source,
         characters: source.char_indices().collect(),
@@ -311,7 +336,24 @@ impl Lexer<'_> {
     fn text(&mut self, start: usize) -> Result<(), Diagnostic> {
         self.position += 1;
         let content_start = self.offset();
-        self.take_while(|character| character != '"' && character != '\n' && character != '\\');
+        // D46: in a format, a `"` inside a hole starts text of its own instead of ending the format.
+        let format = matches!(self.tokens.last(), Some(Token { kind: TokenKind::Name(name), .. }) if name == "show_using_format");
+        let (mut in_hole, mut in_inner_text) = (false, false);
+        let mut hole_start = start;
+        while let Some((offset, character)) = self.peek() {
+            match character {
+                '\n' | '\\' => break,
+                '"' if !(format && in_hole) => break,
+                '"' => in_inner_text = !in_inner_text,
+                '<' if format && !in_hole => {
+                    in_hole = true;
+                    hole_start = offset;
+                }
+                '>' if format && in_hole && !in_inner_text => in_hole = false,
+                _ => {}
+            }
+            self.position += 1;
+        }
         let content_end = self.offset();
         match self.peek() {
             Some((offset, '"')) => {
@@ -326,6 +368,11 @@ impl Lexer<'_> {
                 "a backslash inside text",
                 None,
                 Span::new(offset, offset + 1),
+            )),
+            _ if in_hole => Err(Diagnostic::not_decided(
+                "a `<` with no `>` in a format",
+                Some("D45"),
+                Span::new(hole_start, hole_start + 1),
             )),
             _ => Err(Diagnostic::mistake(
                 "this text has no closing `\"`",

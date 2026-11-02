@@ -1,0 +1,4 @@
+stopped: d46_quote_in_plain_show.redstone:1:11, line 1 column 11
+ 1 | show "a <"b"> c"
+   |           ^
+ what: expected the end of the line, but found `b`

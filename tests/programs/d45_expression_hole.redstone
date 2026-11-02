@@ -1,2 +1,0 @@
-age = 36
-show_using_format "Next year: <age plus 1>"

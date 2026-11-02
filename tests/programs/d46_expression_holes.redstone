@@ -1,0 +1,10 @@
+age = 36
+ages = table:
+"Ada": 36
+end_of table
+scores = 90, 65
+show_using_format "Next year you'll be <age plus 1>"
+show_using_format "Ada is <value of "Ada" in ages>"
+show_using_format "First: <value at position 1 in scores>, adult: <age at_least 18>"
+show_using_format "<"<">"
+show_using_format "café <age times 2> é"

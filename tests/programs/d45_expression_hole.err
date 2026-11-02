@@ -1,5 +1,0 @@
-not decided yet: d45_expression_hole.redstone:2:31, line 2 column 31
- 2 | show_using_format "Next year: <age plus 1>"
-   |                               ^^^^^^^^^^^^
- what: anything but a variable's name inside `< >`
- why:  this part of Redstone's design is still open (D45)

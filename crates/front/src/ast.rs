@@ -197,13 +197,8 @@ pub enum ExprKind {
 pub enum FormatPart {
     /// Text shown as written.
     Text(String),
-    /// `<name>`: the variable's value.
-    Hole {
-        /// The variable's name.
-        name: String,
-        /// Where the name is.
-        span: Span,
-    },
+    /// `<age plus 1>`: an expression's value (D46).
+    Hole(Expr),
 }
 
 /// Where `show items in … until` stops (D38).

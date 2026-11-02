@@ -260,23 +260,16 @@ impl Checker {
         for part in parts {
             checked.push(match part {
                 ast::FormatPart::Text(text) => ir::FormatPart::Text(Rc::from(text.as_str())),
-                ast::FormatPart::Hole { name, span } => {
-                    let variable = self.variable(
-                        name,
-                        *span,
-                        "a variable has to be made with `=` before it's used",
-                    )?;
-                    if variable.ty.is_table() {
+                ast::FormatPart::Hole(hole) => {
+                    let (checked, ty) = self.expression(hole)?;
+                    if ty.is_table() {
                         return Err(Diagnostic::not_decided(
                             "showing a table",
                             Some("D32"),
-                            *span,
+                            hole.span,
                         ));
                     }
-                    ir::FormatPart::Hole(ir::Expr {
-                        kind: ir::ExprKind::Load(variable.slot),
-                        span: *span,
-                    })
+                    ir::FormatPart::Hole(checked)
                 }
             });
         }
