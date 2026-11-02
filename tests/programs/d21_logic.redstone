@@ -1,5 +1,5 @@
-show true and false
-show true or false
-show not false
+show whether true and false
+show whether true or false
+show whether not false
 age = 15
 show "Teen" if age at_least 13 and age less_than 20

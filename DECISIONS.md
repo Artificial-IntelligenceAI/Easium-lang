@@ -311,3 +311,15 @@ Owner: "Yup. Pedantic. Auto commit & push" (to redstone design claude's eleven p
 level chosen over its default; commits and pushes happen without asking, instead of only when the owner says so).
 
 The rules are in `IMPLEMENTATION-RULES.md`.
+
+## D28 — `show whether` (2026-11-02)
+
+Owner, on `show 1 is 1.0`: "Reads a bit weird", "reads a bit weird is the problem that needs to get fixed", then
+"yes" to redstone design claude's reading (it sounds like a sentence claiming "1 is 1.0") and to `whether`, the
+recommended fix (over requiring parentheses, or not showing comparisons at all).
+
+Showing the result of a comparison takes `whether`: `show whether age at_least 18` shows `true` or `false`. Without
+it, `show age at_least 18` is an error that suggests `whether`.
+
+Open (redstone design claude's reading, not ruled): the rule covers anything built with a comparison or `and`, `or`,
+`not`; a plain boolean (`show true`, `show is_adult`) needs no `whether`; `whether` anywhere but right after `show`.

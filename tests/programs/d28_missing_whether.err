@@ -1,0 +1,6 @@
+error: showing a comparison takes `whether`
+ --> d28_missing_whether.redstone:2:6
+  |
+2 | show age at_least 18
+  |      ^^^^^^^^^^^^^^^
+  = write `show whether …` (D28)

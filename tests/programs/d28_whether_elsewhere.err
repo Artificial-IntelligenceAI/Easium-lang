@@ -1,0 +1,6 @@
+not decided yet: `whether` anywhere but right after `show` (D28)
+ --> d28_whether_elsewhere.redstone:1:9
+  |
+1 | adult = whether 20 at_least 18
+  |         ^^^^^^^
+  = this part of Redstone's design is still open in DECISIONS.md

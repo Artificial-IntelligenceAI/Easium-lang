@@ -1,1 +1,1 @@
-show "a" less_than "b"
+show whether "a" less_than "b"

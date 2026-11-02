@@ -1,0 +1,6 @@
+age = 20
+show whether age at_least 18
+show whether age is 18 or age is 20
+show whether not (age is 20)
+adult = true
+show adult

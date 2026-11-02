@@ -10,6 +10,8 @@ use crate::diagnostic::{Diagnostic, Span};
 pub enum Keyword {
     /// `show`
     Show,
+    /// `whether`
+    Whether,
     /// `ask`
     Ask,
     /// `if`
@@ -56,9 +58,10 @@ pub enum Keyword {
     False,
 }
 
-// D5, D12, D14, D16, D18, D19, D20, D21, D22, D24, D25, D26
-const KEYWORDS: [(&str, Keyword); 23] = [
+// D5, D12, D14, D16, D18, D19, D20, D21, D22, D24, D25, D26, D28
+const KEYWORDS: [(&str, Keyword); 24] = [
     ("show", Keyword::Show),
+    ("whether", Keyword::Whether),
     ("ask", Keyword::Ask),
     ("if", Keyword::If),
     ("else_if", Keyword::ElseIf),

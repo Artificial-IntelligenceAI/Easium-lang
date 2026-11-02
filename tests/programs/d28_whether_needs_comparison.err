@@ -1,0 +1,5 @@
+error: `whether` needs a comparison, but this is an int
+ --> d28_whether_needs_comparison.redstone:1:14
+  |
+1 | show whether 5
+  |              ^

@@ -68,8 +68,23 @@ impl Checker {
                 name_span,
                 value,
             } => self.change(name, *name_span, value),
-            ast::Stmt::Show { value, condition } => {
-                let (value, _) = self.expression(value)?;
+            ast::Stmt::Show {
+                value,
+                whether,
+                condition,
+            } => {
+                let value_span = value.span;
+                let (value, ty) = self.expression(value)?;
+                // D28
+                if *whether && ty != Type::Boolean {
+                    return Err(Diagnostic::error(
+                        format!(
+                            "`whether` needs a comparison, but this is {}",
+                            ty.described()
+                        ),
+                        value_span,
+                    ));
+                }
                 let condition = condition
                     .as_ref()
                     .map(|condition| self.condition(condition))

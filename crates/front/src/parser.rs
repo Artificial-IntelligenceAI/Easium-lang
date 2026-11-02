@@ -79,14 +79,7 @@ impl Parser<'_> {
         match &token.kind {
             TokenKind::Keyword(Keyword::Show) => {
                 self.advance();
-                let value = self.expression()?;
-                let condition = if self.peek_keyword() == Some(Keyword::If) {
-                    self.advance();
-                    Some(self.expression()?)
-                } else {
-                    None
-                };
-                Ok(Stmt::Show { value, condition })
+                self.show()
             }
             TokenKind::Keyword(Keyword::If) => {
                 self.advance();
@@ -101,6 +94,32 @@ impl Parser<'_> {
             TokenKind::Name(name) => self.name_statement(name, token.span),
             _ => self.expression_statement(),
         }
+    }
+
+    // D28: showing a comparison takes `whether`.
+    fn show(&mut self) -> Result<Stmt, Diagnostic> {
+        let whether = self.peek_keyword() == Some(Keyword::Whether);
+        if whether {
+            self.advance();
+        }
+        let (value, shape) = self.logic()?;
+        if !whether && matches!(shape, Shape::Comparison | Shape::Logic | Shape::Not) {
+            return Err(
+                Diagnostic::error("showing a comparison takes `whether`", value.span)
+                    .with_hint("write `show whether …` (D28)"),
+            );
+        }
+        let condition = if self.peek_keyword() == Some(Keyword::If) {
+            self.advance();
+            Some(self.expression()?)
+        } else {
+            None
+        };
+        Ok(Stmt::Show {
+            value,
+            whether,
+            condition,
+        })
     }
 
     fn name_statement(&mut self, name: &str, name_span: Span) -> Result<Stmt, Diagnostic> {
@@ -491,6 +510,13 @@ impl Parser<'_> {
                     span: token.span.to(prompt.span),
                     kind: ExprKind::Ask(Box::new(prompt)),
                 });
+            }
+            TokenKind::Keyword(Keyword::Whether) => {
+                return Err(Diagnostic::not_decided(
+                    "`whether` anywhere but right after `show`",
+                    "D28",
+                    token.span,
+                ));
             }
             TokenKind::Keyword(Keyword::Minus) => {
                 return Err(

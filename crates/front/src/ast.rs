@@ -36,6 +36,8 @@ pub enum Stmt {
     Show {
         /// What to show.
         value: Expr,
+        /// Whether it was written `show whether …` (D28).
+        whether: bool,
         /// Shown only when this is true.
         condition: Option<Expr>,
     },

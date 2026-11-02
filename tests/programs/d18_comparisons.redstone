@@ -1,5 +1,5 @@
-show 3 greater_than 2
-show 2 less_than 3
-show 3 at_most 3
-show 2 at_least 3
-show 0.5 less_than 0.75
+show whether 3 greater_than 2
+show whether 2 less_than 3
+show whether 3 at_most 3
+show whether 2 at_least 3
+show whether 0.5 less_than 0.75
