@@ -1,0 +1,5 @@
+error: an `if` needs true or false, but this is an int
+ --> d22_condition_type.redstone:1:4
+  |
+1 | if 5:
+  |    ^

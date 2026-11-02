@@ -1,0 +1,3 @@
+age = 18
+age is_now age plus 1
+show age

@@ -1,0 +1,2 @@
+age = 18
+show "Adult" if age equal 18

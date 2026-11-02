@@ -1,0 +1,6 @@
+not decided yet: joining text with `plus` (D26)
+ --> d26_text_plus.redstone:2:12
+  |
+2 | show "Hi " plus name
+  |            ^^^^
+  = this part of Redstone's design is still open in DECISIONS.md

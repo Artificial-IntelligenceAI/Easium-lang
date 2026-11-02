@@ -1,0 +1,6 @@
+not decided yet: mixing `and` and `or` without parentheses (D21)
+ --> d21_mixing.redstone:1:21
+  |
+1 | show true and false or true
+  |                     ^^
+  = add parentheses, like `(a and b) or c`

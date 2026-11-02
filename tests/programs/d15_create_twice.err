@@ -1,0 +1,6 @@
+error: `age` already exists
+ --> d15_create_twice.redstone:2:1
+  |
+2 | age = 19
+  | ^^^
+  = to change it, write `age is_now …` (D15)

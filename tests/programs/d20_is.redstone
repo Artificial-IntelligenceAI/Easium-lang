@@ -1,0 +1,4 @@
+age = 18
+show "Is adult" if age is 18
+show "Not 20" if age is_not 20
+show "Ada" is "Ada"

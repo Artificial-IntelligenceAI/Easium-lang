@@ -1,0 +1,22 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[workspace.dependencies]
+redstone-front = { path = "crates/front" }
+redstone-interp = { path = "crates/interp" }
+redstone-runtime = { path = "crates/runtime" }
+
+# Rules 4–6: clippy pedantic, warnings as errors; no unsafe yet; no unwrap or expect outside tests.
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+pedantic = { level = "deny", priority = -1 }
+unwrap_used = "deny"
+expect_used = "deny"

@@ -1,0 +1,8 @@
+age = 15
+if age at_least 18:
+show "Adult"
+else_if age at_least 13:
+show "Teen"
+else:
+show "Kid"
+end_of if

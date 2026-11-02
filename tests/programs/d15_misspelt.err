@@ -1,0 +1,6 @@
+error: there's no `agee`
+ --> d15_misspelt.redstone:2:1
+  |
+2 | agee is_now 19
+  | ^^^^
+  = did you mean `age`?

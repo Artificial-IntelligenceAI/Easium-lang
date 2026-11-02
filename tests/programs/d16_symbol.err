@@ -1,0 +1,6 @@
+not decided yet: symbols such as `+` beside the words (D16)
+ --> d16_symbol.redstone:1:8
+  |
+1 | show 1 + 2
+  |        ^
+  = write `plus`

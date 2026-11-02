@@ -1,0 +1,6 @@
+not decided yet: `remainder` beside other arithmetic without parentheses (D17)
+ --> d17_remainder_mixing.redstone:1:20
+  |
+1 | show 7 remainder 2 plus 1
+  |                    ^^^^
+  = add parentheses, like `(7 remainder 2) plus 1`

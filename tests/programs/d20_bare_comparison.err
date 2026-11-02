@@ -1,0 +1,6 @@
+error: this line works something out but does nothing with it
+ --> d20_bare_comparison.redstone:2:1
+  |
+2 | age is 5
+  | ^^^^^^^^
+  = to change `age`, write `age is_now …` (D14)

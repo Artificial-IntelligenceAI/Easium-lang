@@ -1,0 +1,7 @@
+age = 20
+if age at_least 18:
+show "Adult"
+show "Can vote"
+else:
+show "Not yet"
+end_of if

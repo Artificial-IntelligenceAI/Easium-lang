@@ -1,0 +1,7 @@
+age = 10
+if age at_least 18:
+    show "Adult"
+else:
+	show "Kid"
+        show "Still a kid"
+end_of if

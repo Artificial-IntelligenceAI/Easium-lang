@@ -1,0 +1,4 @@
+if true:
+x = 1
+end_of if
+show x

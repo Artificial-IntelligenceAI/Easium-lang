@@ -1,0 +1,6 @@
+not decided yet: `is` with an int on one side and a rational on the other (D7)
+ --> d07_mixed_comparison.redstone:1:6
+  |
+1 | show 1 is 1.0
+  |      ^^^^^^^^
+  = write the int as a decimal, like `1.0`, to make both rationals

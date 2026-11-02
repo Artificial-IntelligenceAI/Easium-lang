@@ -1,0 +1,2 @@
+age = 20
+show "Is Adult" if age at_least 18

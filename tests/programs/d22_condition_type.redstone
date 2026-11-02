@@ -1,0 +1,3 @@
+if 5:
+show "five"
+end_of if

@@ -1,0 +1,11 @@
+[package]
+name = "redstone-front"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+redstone-runtime.workspace = true

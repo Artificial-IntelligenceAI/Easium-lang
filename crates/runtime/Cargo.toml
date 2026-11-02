@@ -1,0 +1,10 @@
+[package]
+name = "redstone-runtime"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]

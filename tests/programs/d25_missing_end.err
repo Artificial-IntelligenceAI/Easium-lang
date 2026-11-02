@@ -1,0 +1,6 @@
+error: this `if` has no `end_of if`
+ --> d25_missing_end.redstone:1:1
+  |
+1 | if true:
+  | ^^
+  = add `end_of if` after its last line (D25)
