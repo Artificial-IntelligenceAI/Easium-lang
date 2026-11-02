@@ -5,7 +5,11 @@ use std::rc::Rc;
 use crate::Rational;
 
 /// One value: an int or a rational (D7), text, a boolean (D19), or a table (D32).
+///
+/// Laid out as a C struct of a one-byte tag and its payload, so the Cranelift tier can read ints and booleans out of
+/// tables in place (D36); it checks the layout before relying on it.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[repr(C, u8)]
 pub enum Value {
     /// A whole number, 64 bits.
     Int(i64),

@@ -8,6 +8,14 @@
 //!   turn them back into slices; every read and write then goes through safe, bounds-checked indexing, so a wrong
 //!   index can only make a helper report failure, never touch memory outside the registers.
 //!
+//! - **Moving objects between registers.** [`object_move`] gets the object file mutably, from the same lending, and
+//!   only clones one register into another: the value it overwrites is dropped, so a compiled loop re-fetches any
+//!   view (below) of the register it moved into before reading through it again.
+//! - **Reading table items in place.** [`table_view`] gives a compiled loop the address and length of an in-order
+//!   table's items; the loop then reads an item's tag and payload directly, inside that length, using the layout
+//!   [`value_layout`] measured. The view stays valid for the whole call: compiled loops never change, move or drop
+//!   a table (the instructions that could keep a loop in tier 0), and tier 0 doesn't run while one does.
+//!
 //! A helper never writes when it fails, so tier 0 can run the same instruction again and report the error
 //! exactly as it always does (rule 10).
 #![allow(unsafe_code)]
@@ -19,8 +27,7 @@ use easium_runtime::{Rational, Table, Value};
 
 /// A compiled loop's machine code: `(ints, rationals, rationals' length, objects, objects' length)` to the
 /// instruction tier 0 goes on from.
-pub(crate) type LoopFunction =
-    extern "C" fn(*mut i64, *mut Rational, i64, *const Value, i64) -> i64;
+pub(crate) type LoopFunction = extern "C" fn(*mut i64, *mut Rational, i64, *mut Value, i64) -> i64;
 
 /// A compiled loop and the register file sizes it was compiled for.
 pub(crate) struct Compiled {
@@ -73,7 +80,7 @@ impl CompiledLoop for Compiled {
             registers.ints.as_mut_ptr(),
             registers.rationals.as_mut_ptr(),
             rationals_length,
-            registers.objects.as_ptr(),
+            registers.objects.as_mut_ptr(),
             objects_length,
         );
         usize::try_from(resume).unwrap_or(self.head)
@@ -85,6 +92,33 @@ fn rationals<'a>(pointer: *mut Rational, length: i64) -> &'a mut [Rational] {
     // SAFETY: the compiled loop passes tier 0's rational register file and its exact length, lent mutably for
     // the whole call, and nothing else touches it while a helper runs.
     unsafe { std::slice::from_raw_parts_mut(pointer, length) }
+}
+
+fn objects_mut<'a>(pointer: *mut Value, length: i64) -> &'a mut [Value] {
+    let length = usize::try_from(length).unwrap_or(0);
+    // SAFETY: the compiled loop passes tier 0's object register file and its exact length, lent mutably for the
+    // whole call, and nothing else touches it while a helper runs.
+    unsafe { std::slice::from_raw_parts_mut(pointer, length) }
+}
+
+/// `objects[dst] = objects[src]`, sharing the value until a change copies it (D37).
+pub(crate) extern "C" fn object_move(
+    objects_pointer: *mut Value,
+    objects_length: i64,
+    dst: i64,
+    src: i64,
+) -> i64 {
+    let file = objects_mut(objects_pointer, objects_length);
+    let Some(value) = file.get(index(src)).cloned() else {
+        return 1;
+    };
+    match file.get_mut(index(dst)) {
+        Some(slot) => {
+            *slot = value;
+            0
+        }
+        None => 1,
+    }
 }
 
 fn objects<'a>(pointer: *const Value, length: i64) -> &'a [Value] {
@@ -286,4 +320,74 @@ pub(crate) extern "C" fn table_rational(
         }
         None => 1,
     }
+}
+
+/// How a [`Value`] is laid out, measured rather than assumed, for compiled loops reading table items in place.
+#[derive(Clone, Copy)]
+pub(crate) struct ValueLayout {
+    /// The size of one `Value`, and so the distance between a table's items.
+    pub(crate) size: i64,
+    /// Where an int's or boolean's payload starts.
+    pub(crate) payload: i32,
+    /// The tag byte of an int.
+    pub(crate) int_tag: u8,
+    /// The tag byte of a boolean.
+    pub(crate) boolean_tag: u8,
+}
+
+/// The layout of [`Value`], or `None` if it isn't the `#[repr(C, u8)]` layout compiled loops read: a tag byte first,
+/// the payload at offset 8.
+pub(crate) fn value_layout() -> Option<ValueLayout> {
+    const PAYLOAD: usize = 8;
+    let int = Value::Int(0x0123_4567_89AB_CDEF);
+    let boolean = Value::Boolean(true);
+    let size = std::mem::size_of::<Value>();
+    if size < PAYLOAD + 8 || std::mem::align_of::<Value>() < 8 {
+        return None;
+    }
+    // SAFETY: each read is of a live, fully built value, within its size: the tag byte at offset 0, which
+    // `#[repr(C, u8)]` places first, and the payload at offset 8, which the checks above keep inside the value.
+    let (int_tag, int_payload, boolean_tag, boolean_payload) = unsafe {
+        let int_bytes = std::ptr::from_ref(&int).cast::<u8>();
+        let boolean_bytes = std::ptr::from_ref(&boolean).cast::<u8>();
+        (
+            int_bytes.read(),
+            int_bytes.add(PAYLOAD).cast::<i64>().read_unaligned(),
+            boolean_bytes.read(),
+            boolean_bytes.add(PAYLOAD).read(),
+        )
+    };
+    (int_payload == 0x0123_4567_89AB_CDEF && boolean_payload == 1 && int_tag != boolean_tag).then(
+        || ValueLayout {
+            size: i64::try_from(size).unwrap_or(0),
+            payload: 8,
+            int_tag,
+            boolean_tag,
+        },
+    )
+}
+
+/// Writes where the in-order table in `objects[table]` keeps its items and how many there are to `out[0]` and
+/// `out[1]`; fails, writing nothing, if it isn't an in-order table.
+pub(crate) extern "C" fn table_view(
+    objects_pointer: *const Value,
+    objects_length: i64,
+    table: i64,
+    out: *mut i64,
+) -> i64 {
+    let Some(values) = in_order(objects(objects_pointer, objects_length), table) else {
+        return 1;
+    };
+    let (Ok(address), Ok(length)) = (
+        i64::try_from(values.as_ptr().addr()),
+        i64::try_from(values.len()),
+    ) else {
+        return 1;
+    };
+    // SAFETY: `out` is the address of a 16-byte, 8-aligned stack slot in the calling compiled loop.
+    unsafe {
+        out.write(address);
+        out.add(1).write(length);
+    }
+    0
 }

@@ -1,0 +1,22 @@
+a = 1, 2, 3
+b = 10, 20
+flags = true, false, true
+total = 0
+trues = 0
+repeat 4 times:
+    pick = a
+    pick becomes b if (current_round remainder 2) is 0
+    for items in pick until last_item:
+        total becomes total plus current_item
+    end_of for
+    for items in flags until last_item:
+        trues becomes trues plus 1 if current_item
+    end_of for
+    total becomes total plus value at position 2 in pick
+end_of repeat
+show total
+show trues
+n = 0
+repeat 3 times:
+    n becomes n plus value at position (current_round plus 1) in a
+end_of repeat

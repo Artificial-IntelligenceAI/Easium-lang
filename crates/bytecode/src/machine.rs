@@ -83,7 +83,7 @@ impl Machine<'_> {
             LoopState::Compiled(compiled) => compiled.run(&mut Registers {
                 ints: &mut self.ints,
                 rationals: &mut self.rationals,
-                objects: &self.objects,
+                objects: &mut self.objects,
             }),
             LoopState::Counting(_) | LoopState::Interpreted => head,
         }

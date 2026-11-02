@@ -33,6 +33,8 @@ pub struct Cranelift {
     builder_context: FunctionBuilderContext,
     helpers: Helpers,
     loops: usize,
+    /// How to read a table item in place, when `Value`'s layout checked out.
+    layout: Option<calls::ValueLayout>,
 }
 
 /// The helpers compiled loops call, as declared in the module.
@@ -46,6 +48,8 @@ struct Helpers {
     table_length: FuncId,
     table_int: FuncId,
     table_rational: FuncId,
+    table_view: FuncId,
+    object_move: FuncId,
 }
 
 impl Cranelift {
@@ -59,7 +63,7 @@ impl Cranelift {
             .finish(settings::Flags::new(flags))
             .ok()?;
         let mut builder = JITBuilder::with_isa(isa, cranelift_module::default_libcall_names());
-        let symbols: [(&str, *const u8); 9] = [
+        let symbols: [(&str, *const u8); 11] = [
             ("easium_rational_copy", calls::rational_copy as *const u8),
             ("easium_rational_move", calls::rational_move as *const u8),
             (
@@ -81,6 +85,8 @@ impl Cranelift {
             ("easium_table_length", calls::table_length as *const u8),
             ("easium_table_int", calls::table_int as *const u8),
             ("easium_table_rational", calls::table_rational as *const u8),
+            ("easium_table_view", calls::table_view as *const u8),
+            ("easium_object_move", calls::object_move as *const u8),
         ];
         for (name, pointer) in symbols {
             builder.symbol(name, pointer);
@@ -117,6 +123,8 @@ impl Cranelift {
                 "easium_table_rational",
                 &[pointer, i64, pointer, i64, i64, i64, i64],
             )?,
+            table_view: declare("easium_table_view", &[pointer, i64, i64, pointer])?,
+            object_move: declare("easium_object_move", &[pointer, i64, i64, i64])?,
         };
         let context = module.make_context();
         Some(Self {
@@ -125,6 +133,7 @@ impl Cranelift {
             builder_context: FunctionBuilderContext::new(),
             helpers,
             loops: 0,
+            layout: calls::value_layout(),
         })
     }
 }
@@ -165,7 +174,15 @@ impl LoopCompiler for Cranelift {
                 _ => None,
             })
             .collect();
-        let built = LoopBuilder::build(&mut builder, &helpers, ops, head, pointer_type, &constants);
+        let built = LoopBuilder::build(
+            &mut builder,
+            &helpers,
+            ops,
+            head,
+            pointer_type,
+            &constants,
+            self.layout,
+        );
         builder.seal_all_blocks();
         builder.finalize(frontend_config);
         if built.is_none() {
@@ -220,6 +237,7 @@ fn supported(op: &Op, code: &Code) -> bool {
         | Op::DivideRationals { dst, a, b, .. } => rational(dst) && rational(a) && rational(b),
         Op::CompareRationals { dst, a, b, .. } => int(dst) && rational(a) && rational(b),
         Op::Length { dst, table } => int(dst) && object(table),
+        Op::MoveObject { dst, src } => object(dst) && object(src),
         Op::Item { dst, table, index }
         | Op::ReadPosition {
             dst, table, index, ..
@@ -239,6 +257,8 @@ struct Imported {
     table_length: FuncRef,
     table_int: FuncRef,
     table_rational: FuncRef,
+    table_view: FuncRef,
+    object_move: FuncRef,
 }
 
 impl Imported {
@@ -258,6 +278,8 @@ impl Imported {
             table_length: import(helpers.table_length),
             table_int: import(helpers.table_int),
             table_rational: import(helpers.table_rational),
+            table_view: import(helpers.table_view),
+            object_move: import(helpers.object_move),
         }
     }
 }
@@ -284,6 +306,12 @@ struct LoopBuilder<'b, 'f> {
     /// Where each rational constant is, in the order the loop's instructions use them.
     constants: Vec<i64>,
     next_constant: usize,
+    /// How to read a table item in place, if `Value`'s layout checked out.
+    layout: Option<calls::ValueLayout>,
+    /// For each table the loop reads, variables holding where its items are and how many there are.
+    views: HashMap<u32, (Variable, Variable)>,
+    /// A 16-byte stack slot views are fetched into.
+    view_slot: Option<Value>,
 }
 
 impl<'b, 'f> LoopBuilder<'b, 'f> {
@@ -294,6 +322,7 @@ impl<'b, 'f> LoopBuilder<'b, 'f> {
         head: usize,
         pointer_type: types::Type,
         constants: &[Rational],
+        layout: Option<calls::ValueLayout>,
     ) -> Option<()> {
         let entry = builder.create_block();
         builder.append_block_params_for_function_params(entry);
@@ -324,7 +353,6 @@ impl<'b, 'f> LoopBuilder<'b, 'f> {
         let exit = builder.create_block();
         builder.append_block_param(exit, types::I64);
         let first = *blocks.first()?;
-        builder.ins().jump(first, &[]);
         let mut loop_builder = LoopBuilder {
             builder,
             helpers,
@@ -346,13 +374,86 @@ impl<'b, 'f> LoopBuilder<'b, 'f> {
                 .map(|constant| i64::try_from(std::ptr::from_ref(constant).addr()).ok())
                 .collect::<Option<_>>()?,
             next_constant: 0,
+            layout,
+            views: HashMap::new(),
+            view_slot: None,
         };
+        loop_builder.prepare_views(ops)?;
+        loop_builder.builder.ins().jump(first, &[]);
         for (at, op) in ops.iter().enumerate() {
             let block = *loop_builder.blocks.get(at)?;
             loop_builder.builder.switch_to_block(block);
             loop_builder.instruction(at, op)?;
         }
         loop_builder.finish_exit()
+    }
+
+    /// At loop entry, finds where each table the loop reads keeps its items. If one isn't an in-order table after
+    /// all, the loop goes back to tier 0 at its head.
+    fn prepare_views(&mut self, ops: &[Op]) -> Option<()> {
+        if self.layout.is_none() {
+            return Some(());
+        }
+        let tables = ops
+            .iter()
+            .filter_map(|op| match op {
+                Op::Length { table, .. }
+                | Op::Item {
+                    table,
+                    dst: Reg::Int(_) | Reg::Boolean(_),
+                    ..
+                }
+                | Op::ReadPosition {
+                    table,
+                    dst: Reg::Int(_) | Reg::Boolean(_),
+                    ..
+                } => Some(*table),
+                _ => None,
+            })
+            .collect::<BTreeSet<_>>();
+        if tables.is_empty() {
+            return Some(());
+        }
+        let slot = self.builder.create_sized_stack_slot(StackSlotData::new(
+            StackSlotKind::ExplicitSlot,
+            16,
+            3,
+        ));
+        self.view_slot = Some(self.builder.ins().stack_addr(self.pointer_type, slot, 0));
+        for table in tables {
+            let address_variable = self.builder.declare_var(types::I64);
+            let length_variable = self.builder.declare_var(types::I64);
+            self.views
+                .insert(table, (address_variable, length_variable));
+            self.fetch_view(table, self.head)?;
+        }
+        Some(())
+    }
+
+    /// Finds where a table's items are now, into its view variables; if it isn't an in-order table, hands back to
+    /// tier 0 at instruction `resume`.
+    fn fetch_view(&mut self, table: u32, resume: usize) -> Option<()> {
+        let (address_variable, length_variable) = *self.views.get(&table)?;
+        let out = self.view_slot?;
+        let args = [
+            self.objects,
+            self.objects_length,
+            self.constant(i64::from(table)),
+            out,
+        ];
+        let failed = self.call(self.helpers.table_view, &args)?;
+        self.bail_to_if(resume, failed);
+        let address = self
+            .builder
+            .ins()
+            .load(types::I64, MemFlagsData::trusted(), out, 0);
+        let length = self
+            .builder
+            .ins()
+            .load(types::I64, MemFlagsData::trusted(), out, 8);
+        self.builder.def_var(address_variable, address);
+        self.builder.def_var(length_variable, length);
+        Some(())
     }
 
     /// The exit: every int variable back to tier 0's registers, then where tier 0 goes on from.
@@ -418,7 +519,12 @@ impl<'b, 'f> LoopBuilder<'b, 'f> {
 
     /// Hands instruction `at` back to tier 0 when `failed` is non-zero; otherwise goes on in a new block.
     fn bail_if(&mut self, at: usize, failed: Value) {
-        let bail = self.block_for_bail(at);
+        self.bail_to_if(self.head + at, failed);
+    }
+
+    /// Goes back to tier 0 at instruction `resume` when `failed` is non-zero; otherwise goes on in a new block.
+    fn bail_to_if(&mut self, resume: usize, failed: Value) {
+        let bail = self.block_for_bail(resume - self.head);
         let go_on = self.builder.create_block();
         self.builder.ins().brif(failed, bail, &[], go_on, &[]);
         self.builder.switch_to_block(go_on);
@@ -613,7 +719,12 @@ impl<'b, 'f> LoopBuilder<'b, 'f> {
                 let result = self.builder.ins().uextend(types::I64, compared);
                 self.set(*dst, result)?;
             }
-            Op::Length { .. } | Op::Item { .. } | Op::ReadPosition { .. } => self.table(at, op)?,
+            Op::Length { .. }
+            | Op::Item { .. }
+            | Op::ReadPosition { .. }
+            | Op::MoveObject { .. } => {
+                self.table(at, op)?;
+            }
             _ => return None,
         }
         Some(())
@@ -622,6 +733,26 @@ impl<'b, 'f> LoopBuilder<'b, 'f> {
     fn table(&mut self, at: usize, op: &Op) -> Option<()> {
         let (objects, objects_length) = (self.objects, self.objects_length);
         match op {
+            Op::MoveObject { dst, src } => {
+                let args = [
+                    self.objects,
+                    self.objects_length,
+                    self.constant(i64::from(*dst)),
+                    self.constant(i64::from(*src)),
+                ];
+                let failed = self.call(self.helpers.object_move, &args)?;
+                self.bail_if(at, failed);
+                // The value `dst` held may be gone now, so its view is fetched again; the move is done, so a
+                // failure here hands back after it.
+                if self.views.contains_key(dst) {
+                    self.fetch_view(*dst, self.head + at + 1)?;
+                }
+            }
+            Op::Length { dst, table } if self.views.contains_key(table) => {
+                let (_, length) = *self.views.get(table)?;
+                let value = self.builder.use_var(length);
+                self.set(*dst, value)?;
+            }
             Op::Length { dst, table } => {
                 let args = [objects, objects_length, self.constant(i64::from(*table))];
                 let length = self.call(self.helpers.table_length, &args)?;
@@ -657,6 +788,11 @@ impl<'b, 'f> LoopBuilder<'b, 'f> {
 
     /// Reads the item at a zero-based index into a number register, handing the instruction back if it's missing.
     fn read_item(&mut self, at: usize, dst: Reg, table: u32, item: Value) -> Option<()> {
+        if let (Reg::Int(reg) | Reg::Boolean(reg), Some(layout), Some((address, length))) =
+            (dst, self.layout, self.views.get(&table).copied())
+        {
+            return self.read_item_in_place(at, dst, reg, layout, address, length, item);
+        }
         let (objects, objects_length) = (self.objects, self.objects_length);
         let table = self.constant(i64::from(table));
         match dst {
@@ -686,6 +822,58 @@ impl<'b, 'f> LoopBuilder<'b, 'f> {
             }
             Reg::Object(_) => None,
         }
+    }
+}
+
+impl LoopBuilder<'_, '_> {
+    /// Reads an int or boolean item straight from the table's memory: a bounds check, a tag check, a load. Anything
+    /// unexpected hands the instruction back to tier 0.
+    #[allow(clippy::too_many_arguments)]
+    fn read_item_in_place(
+        &mut self,
+        at: usize,
+        dst: Reg,
+        reg: u32,
+        layout: calls::ValueLayout,
+        address: Variable,
+        length: Variable,
+        item: Value,
+    ) -> Option<()> {
+        let length = self.builder.use_var(length);
+        let outside = self
+            .builder
+            .ins()
+            .icmp(IntCC::UnsignedGreaterThanOrEqual, item, length);
+        self.bail_if(at, outside);
+        let start = self.builder.use_var(address);
+        let distance = self.builder.ins().imul_imm_s(item, layout.size);
+        let place = self.builder.ins().iadd(start, distance);
+        let tag = self
+            .builder
+            .ins()
+            .load(types::I8, MemFlagsData::trusted(), place, 0);
+        let expected = if matches!(dst, Reg::Boolean(_)) {
+            layout.boolean_tag
+        } else {
+            layout.int_tag
+        };
+        let unexpected = self
+            .builder
+            .ins()
+            .icmp_imm_u(IntCC::NotEqual, tag, i64::from(expected));
+        self.bail_if(at, unexpected);
+        let value = if matches!(dst, Reg::Boolean(_)) {
+            let byte =
+                self.builder
+                    .ins()
+                    .load(types::I8, MemFlagsData::trusted(), place, layout.payload);
+            self.builder.ins().uextend(types::I64, byte)
+        } else {
+            self.builder
+                .ins()
+                .load(types::I64, MemFlagsData::trusted(), place, layout.payload)
+        };
+        self.set(reg, value)
     }
 }
 

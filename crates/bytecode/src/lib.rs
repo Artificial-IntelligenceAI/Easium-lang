@@ -70,6 +70,6 @@ pub struct Registers<'a> {
     pub ints: &'a mut [i64],
     /// Rationals.
     pub rationals: &'a mut [Rational],
-    /// Text and tables, which compiled loops only read.
-    pub objects: &'a [Value],
+    /// Text and tables. Compiled loops read them and move them between registers, but never change one.
+    pub objects: &'a mut [Value],
 }

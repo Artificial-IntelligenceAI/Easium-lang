@@ -1,0 +1,5 @@
+stopped: d36_compiled_tables.easium:21:40, line 21 column 40
+ 21 |     n becomes n plus value at position (current_round plus 1) in a
+    |                                        ^^^^^^^^^^^^^^^^^^^^^^
+ what: there's no position 4 in this table
+ why:  this table has positions 1 to 3
