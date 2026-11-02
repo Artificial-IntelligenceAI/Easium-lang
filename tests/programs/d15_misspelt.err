@@ -1,5 +1,5 @@
 stopped: d15_misspelt.redstone:2:1, line 2 column 1
- 2 | agee is_now 19
+ 2 | agee becomes 19
    | ^^^^
  what: there's no `agee`
- why:  a variable has to be made with `=` before `is_now` can change it
+ why:  a variable has to be made with `=` before `becomes` can change it

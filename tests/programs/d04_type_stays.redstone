@@ -1,2 +1,2 @@
 age = 18
-age is_now "old"
+age becomes "old"

@@ -23,7 +23,7 @@ pub enum Stmt {
         /// Its first value.
         value: Expr,
     },
-    /// `age is_now 19`: changes a variable (D14).
+    /// `age becomes 19`: changes a variable (D14).
     Change {
         /// The variable's name.
         name: String,
@@ -43,7 +43,7 @@ pub enum Stmt {
         /// Shown only when this is true.
         condition: Option<Expr>,
     },
-    /// `value at position 1 in scores is_now 95`: changes an item in a table held by a variable (D35).
+    /// `value at position 1 in scores becomes 95`: changes an item in a table held by a variable (D35).
     ChangeItem {
         /// The variable holding the table.
         name: String,

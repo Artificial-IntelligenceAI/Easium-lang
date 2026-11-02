@@ -1,5 +1,5 @@
 not decided yet: d35_add_key.redstone:4:10, line 4 column 10
- 4 | value of "Cy" in ages is_now 7
+ 4 | value of "Cy" in ages becomes 7
    |          ^^^^
  what: adding a key by changing it
  why:  this part of Redstone's design is still open (D35)

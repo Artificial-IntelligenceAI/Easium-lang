@@ -1,2 +1,2 @@
 scores = 1, 2
-scores is_now "a", "b"
+scores becomes "a", "b"

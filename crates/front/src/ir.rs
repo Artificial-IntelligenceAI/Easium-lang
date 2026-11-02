@@ -75,7 +75,7 @@ impl Type {
 /// One checked statement.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Stmt {
-    /// Stores a value in a slot: both `=` and `is_now`.
+    /// Stores a value in a slot: both `=` and `becomes`.
     Assign {
         /// The variable's slot.
         slot: usize,

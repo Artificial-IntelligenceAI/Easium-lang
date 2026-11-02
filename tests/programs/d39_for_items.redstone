@@ -1,7 +1,7 @@
 scores = 90, 65, 70, 65
 total = 0
 for items in scores until last_item:
-    total is_now total plus current_item
+    total becomes total plus current_item
 end_of for
 show total
 for items in scores until_before value 70:

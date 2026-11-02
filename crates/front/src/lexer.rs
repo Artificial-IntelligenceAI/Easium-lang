@@ -22,8 +22,8 @@ pub enum Keyword {
     Else,
     /// `end_of`
     EndOf,
-    /// `is_now`
-    IsNow,
+    /// `becomes`
+    Becomes,
     /// `is`
     Is,
     /// `is_not`
@@ -69,7 +69,7 @@ const KEYWORDS: [(&str, Keyword); 25] = [
     ("else_if", Keyword::ElseIf),
     ("else", Keyword::Else),
     ("end_of", Keyword::EndOf),
-    ("is_now", Keyword::IsNow),
+    ("becomes", Keyword::Becomes),
     ("is", Keyword::Is),
     ("is_not", Keyword::IsNot),
     ("plus", Keyword::Plus),

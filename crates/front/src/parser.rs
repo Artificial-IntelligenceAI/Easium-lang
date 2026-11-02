@@ -284,7 +284,7 @@ impl Parser<'_> {
         let next = self.peek_at(1).clone();
         let assigns = matches!(
             next.kind,
-            TokenKind::Equals | TokenKind::Keyword(Keyword::IsNow)
+            TokenKind::Equals | TokenKind::Keyword(Keyword::Becomes)
         );
         // D41: `stop`, or `stop if …`.
         if name == "stop" && !assigns {
@@ -320,7 +320,7 @@ impl Parser<'_> {
                 })
             }
             // D14
-            TokenKind::Keyword(Keyword::IsNow) => {
+            TokenKind::Keyword(Keyword::Becomes) => {
                 self.advance();
                 self.advance();
                 let value = self.assigned_value()?;
@@ -329,6 +329,11 @@ impl Parser<'_> {
                     name_span,
                     value,
                 })
+            }
+            // D42
+            TokenKind::Name(old) if old == "is_now" => {
+                Err(Diagnostic::mistake("`is_now` is now `becomes`", next.span)
+                    .fix("is_now", "becomes"))
             }
             // D25
             TokenKind::Name(of) if name == "end" && of == "of" => Err(Diagnostic::mistake(
@@ -343,13 +348,22 @@ impl Parser<'_> {
 
     fn expression_statement(&mut self) -> Result<Stmt, Diagnostic> {
         let expression = self.expression()?;
-        if self.peek().kind == TokenKind::Keyword(Keyword::IsNow)
+        if self.peek().kind == TokenKind::Keyword(Keyword::Becomes)
             && matches!(
                 expression.kind,
                 ExprKind::ReadPosition { .. } | ExprKind::ReadKey { .. }
             )
         {
             return self.change_item(expression);
+        }
+        // D42
+        if let TokenKind::Name(old) = &self.peek().kind
+            && old == "is_now"
+        {
+            return Err(
+                Diagnostic::mistake("`is_now` is now `becomes`", self.peek().span)
+                    .fix("is_now", "becomes"),
+            );
         }
         let diagnostic = Diagnostic::mistake(
             "this line works something out but does nothing with it",
@@ -359,7 +373,7 @@ impl Parser<'_> {
             .because("a line shows something, makes or changes a variable, or starts a block"))
     }
 
-    // D35: `value at position 1 in scores is_now 95`.
+    // D35: `value at position 1 in scores becomes 95`.
     fn change_item(&mut self, target: Expr) -> Result<Stmt, Diagnostic> {
         let (table, selector) = match target.kind {
             ExprKind::ReadPosition {
@@ -412,7 +426,7 @@ impl Parser<'_> {
                 token.span,
             )),
             TokenKind::Comma => Err(Diagnostic::not_decided(
-                "a comma anywhere but in a table right after `=` or `is_now`",
+                "a comma anywhere but in a table right after `=` or `becomes`",
                 Some("D33"),
                 token.span,
             )),
@@ -441,6 +455,8 @@ impl Parser<'_> {
                 .fix("equal", "is")
                 .because("`is` compares two things"),
             ("not_equal", _) => diagnostic.fix("not_equal", "is_not"),
+            // D42
+            ("is_now", _) => diagnostic.fix("is_now", "becomes"),
             // D5
             ("at", "least" | "most") => Diagnostic::mistake(
                 format!("`at {next}` is one word"),
@@ -544,7 +560,7 @@ impl Parser<'_> {
         .because(format!("the block being closed is {described}")))
     }
 
-    // D33: the value after `=` or `is_now` may be a table.
+    // D33: the value after `=` or `becomes` may be a table.
     fn assigned_value(&mut self) -> Result<Expr, Diagnostic> {
         if self.peek_keyword() == Some(Keyword::Table) {
             return self.keyed_table();
@@ -836,7 +852,7 @@ impl Parser<'_> {
             }
             TokenKind::Keyword(Keyword::Table) => {
                 return Err(Diagnostic::not_decided(
-                    "a table anywhere but right after `=` or `is_now`",
+                    "a table anywhere but right after `=` or `becomes`",
                     Some("D33"),
                     token.span,
                 ));

@@ -559,3 +559,11 @@ end_of repeat
 - **`repeat forever:`** runs its block until something leaves it.
 - **`stop`** leaves the loop it is in, the innermost one, in any loop (`repeat … times`, `repeat until`,
   `repeat forever`, `for items in`). It takes a trailing `if`, as in the example. Outside a loop it is a mistake.
+
+## D42 — `becomes`, not `is_now` (2026-11-02)
+
+Owner: "`is_now` reads a bit weird, can we change it to `become`?", then "with s" (redstone design claude offered
+`becomes`, which reads as a sentence, or `become`, which reads as a command).
+
+`becomes` changes a variable or an item: `age becomes age plus 1`, `value of "Ada" in ages becomes 37`. Replaces
+`is_now` in D14, D15, D20 and D35. It no longer looks like `is`.

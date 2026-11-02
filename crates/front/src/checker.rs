@@ -206,7 +206,7 @@ impl Checker {
         if self.lookup(name).is_some() {
             return Err(
                 Diagnostic::mistake(format!("`{name}` already exists"), name_span)
-                    .because("`=` makes a new variable; `is_now` changes one that exists"),
+                    .because("`=` makes a new variable; `becomes` changes one that exists"),
             );
         }
         if self.ended.contains(name) {
@@ -230,7 +230,7 @@ impl Checker {
         let variable = self.variable(
             name,
             name_span,
-            "a variable has to be made with `=` before `is_now` can change it",
+            "a variable has to be made with `=` before `becomes` can change it",
         )?;
         let value_span = value.span;
         let (value, ty) = self.expression(value)?;

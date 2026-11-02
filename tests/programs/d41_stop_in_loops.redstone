@@ -1,6 +1,6 @@
 n = 0
 repeat 10 times:
-    n is_now n plus 1
+    n becomes n plus 1
     if n is 3:
         stop
     end_of if
