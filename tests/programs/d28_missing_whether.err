@@ -1,4 +1,4 @@
-stopped: d28_missing_whether.redstone:2:6, line 2 column 6
+stopped: d28_missing_whether.easium:2:6, line 2 column 6
  2 | show age at_least 18
    |      ^^^^^^^^^^^^^^^
  fix:  `show` → `show whether`

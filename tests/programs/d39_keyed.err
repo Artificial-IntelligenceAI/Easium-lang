@@ -1,5 +1,5 @@
-not decided yet: d39_keyed.redstone:4:14, line 4 column 14
+not decided yet: d39_keyed.easium:4:14, line 4 column 14
  4 | for items in ages until last_item:
    |              ^^^^
  what: going through a keyed table
- why:  this part of Redstone's design is still open (D39)
+ why:  this part of Easium's design is still open (D39)

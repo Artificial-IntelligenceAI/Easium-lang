@@ -1,5 +1,5 @@
-not decided yet: d18_text_ordering.redstone:1:18, line 1 column 18
+not decided yet: d18_text_ordering.easium:1:18, line 1 column 18
  1 | show whether "a" less_than "b"
    |                  ^^^^^^^^^
  what: comparing text with `less_than`
- why:  this part of Redstone's design is still open (D18)
+ why:  this part of Easium's design is still open (D18)

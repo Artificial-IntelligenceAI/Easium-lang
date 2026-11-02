@@ -3,7 +3,7 @@
 
 use std::rc::Rc;
 
-use redstone_runtime::Rational;
+use easium_runtime::Rational;
 
 pub use crate::ast::Counting;
 use crate::diagnostic::Span;

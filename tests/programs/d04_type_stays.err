@@ -1,4 +1,4 @@
-stopped: d04_type_stays.redstone:2:13, line 2 column 13
+stopped: d04_type_stays.easium:2:13, line 2 column 13
  2 | age becomes "old"
    |             ^^^^^
  what: `age` is an int, so it can't become text

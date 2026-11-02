@@ -1,4 +1,4 @@
-stopped: d15_misspelt.redstone:2:1, line 2 column 1
+stopped: d15_misspelt.easium:2:1, line 2 column 1
  2 | agee becomes 19
    | ^^^^
  what: there's no `agee`

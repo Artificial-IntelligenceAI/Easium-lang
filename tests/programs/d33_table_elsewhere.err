@@ -1,5 +1,5 @@
-not decided yet: d33_table_elsewhere.redstone:1:6, line 1 column 6
+not decided yet: d33_table_elsewhere.easium:1:6, line 1 column 6
  1 | show table:
    |      ^^^^^
  what: a table anywhere but right after `=` or `becomes`
- why:  this part of Redstone's design is still open (D33)
+ why:  this part of Easium's design is still open (D33)

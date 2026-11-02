@@ -1,6 +1,6 @@
 //! The program as written, before checking.
 
-use redstone_runtime::Rational;
+use easium_runtime::Rational;
 
 use crate::diagnostic::Span;
 

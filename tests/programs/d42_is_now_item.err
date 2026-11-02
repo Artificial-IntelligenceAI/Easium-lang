@@ -1,4 +1,4 @@
-stopped: d42_is_now_item.redstone:2:31, line 2 column 31
+stopped: d42_is_now_item.easium:2:31, line 2 column 31
  2 | value at position 1 in scores is_now 5
    |                               ^^^^^^
  fix:  `is_now` → `becomes`

@@ -1,5 +1,5 @@
-not decided yet: d21_mixing.redstone:1:29, line 1 column 29
+not decided yet: d21_mixing.easium:1:29, line 1 column 29
  1 | show whether true and false or true
    |                             ^^
  what: mixing `and` and `or` without parentheses
- why:  this part of Redstone's design is still open (D21)
+ why:  this part of Easium's design is still open (D21)

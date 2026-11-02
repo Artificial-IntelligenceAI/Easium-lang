@@ -21,10 +21,10 @@ use cranelift_codegen::settings::{self, Configurable};
 use cranelift_frontend::{FunctionBuilder, FunctionBuilderContext, Variable};
 use cranelift_jit::{JITBuilder, JITModule};
 use cranelift_module::{FuncId, Linkage, Module};
-use redstone_bytecode::op::{Op, Reg};
-use redstone_bytecode::{Code, CompiledLoop, LoopCompiler};
-use redstone_front::ir::{Comparison, Counting};
-use redstone_runtime::Rational;
+use easium_bytecode::op::{Op, Reg};
+use easium_bytecode::{Code, CompiledLoop, LoopCompiler};
+use easium_front::ir::{Comparison, Counting};
+use easium_runtime::Rational;
 
 /// Compiles hot loops with Cranelift. It owns the machine code, so it must outlive every run it serves.
 pub struct Cranelift {
@@ -60,30 +60,27 @@ impl Cranelift {
             .ok()?;
         let mut builder = JITBuilder::with_isa(isa, cranelift_module::default_libcall_names());
         let symbols: [(&str, *const u8); 9] = [
-            ("redstone_rational_copy", calls::rational_copy as *const u8),
-            ("redstone_rational_move", calls::rational_move as *const u8),
+            ("easium_rational_copy", calls::rational_copy as *const u8),
+            ("easium_rational_move", calls::rational_move as *const u8),
             (
-                "redstone_rational_from_int",
+                "easium_rational_from_int",
                 calls::rational_from_int as *const u8,
             ),
             (
-                "redstone_rational_divide_ints",
+                "easium_rational_divide_ints",
                 calls::rational_divide_ints as *const u8,
             ),
             (
-                "redstone_rational_arithmetic",
+                "easium_rational_arithmetic",
                 calls::rational_arithmetic as *const u8,
             ),
             (
-                "redstone_rational_compare",
+                "easium_rational_compare",
                 calls::rational_compare as *const u8,
             ),
-            ("redstone_table_length", calls::table_length as *const u8),
-            ("redstone_table_int", calls::table_int as *const u8),
-            (
-                "redstone_table_rational",
-                calls::table_rational as *const u8,
-            ),
+            ("easium_table_length", calls::table_length as *const u8),
+            ("easium_table_int", calls::table_int as *const u8),
+            ("easium_table_rational", calls::table_rational as *const u8),
         ];
         for (name, pointer) in symbols {
             builder.symbol(name, pointer);
@@ -102,22 +99,22 @@ impl Cranelift {
         };
         let i64 = types::I64;
         let helpers = Helpers {
-            rational_copy: declare("redstone_rational_copy", &[pointer, i64, i64, pointer])?,
-            rational_move: declare("redstone_rational_move", &[pointer, i64, i64, i64])?,
-            rational_from_int: declare("redstone_rational_from_int", &[pointer, i64, i64, i64])?,
+            rational_copy: declare("easium_rational_copy", &[pointer, i64, i64, pointer])?,
+            rational_move: declare("easium_rational_move", &[pointer, i64, i64, i64])?,
+            rational_from_int: declare("easium_rational_from_int", &[pointer, i64, i64, i64])?,
             rational_divide_ints: declare(
-                "redstone_rational_divide_ints",
+                "easium_rational_divide_ints",
                 &[pointer, i64, i64, i64, i64],
             )?,
             rational_arithmetic: declare(
-                "redstone_rational_arithmetic",
+                "easium_rational_arithmetic",
                 &[pointer, i64, i64, i64, i64, i64],
             )?,
-            rational_compare: declare("redstone_rational_compare", &[pointer, i64, i64, i64])?,
-            table_length: declare("redstone_table_length", &[pointer, i64, i64])?,
-            table_int: declare("redstone_table_int", &[pointer, i64, i64, i64, pointer])?,
+            rational_compare: declare("easium_rational_compare", &[pointer, i64, i64, i64])?,
+            table_length: declare("easium_table_length", &[pointer, i64, i64])?,
+            table_int: declare("easium_table_int", &[pointer, i64, i64, i64, pointer])?,
             table_rational: declare(
-                "redstone_table_rational",
+                "easium_table_rational",
                 &[pointer, i64, pointer, i64, i64, i64, i64],
             )?,
         };
@@ -150,7 +147,7 @@ impl LoopCompiler for Cranelift {
             signature.params.push(AbiParam::new(param));
         }
         signature.returns.push(AbiParam::new(types::I64));
-        let name = format!("redstone_loop_{}", self.loops);
+        let name = format!("easium_loop_{}", self.loops);
         self.loops += 1;
         let id = self
             .module

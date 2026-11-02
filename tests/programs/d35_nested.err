@@ -1,5 +1,5 @@
-not decided yet: d35_nested.redstone:3:24, line 3 column 24
+not decided yet: d35_nested.easium:3:24, line 3 column 24
  3 | value at position 1 in (value at position 1 in grid) becomes 5
    |                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
  what: changing an item in a table inside a table
- why:  this part of Redstone's design is still open (D35)
+ why:  this part of Easium's design is still open (D35)

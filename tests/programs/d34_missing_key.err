@@ -1,4 +1,4 @@
-stopped: d34_missing_key.redstone:4:15, line 4 column 15
+stopped: d34_missing_key.easium:4:15, line 4 column 15
  4 | show value of "Cy" in ages
    |               ^^^^
  what: there's no key "Cy" in this table

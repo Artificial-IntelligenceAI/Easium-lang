@@ -1,4 +1,4 @@
-stopped: d38_test_type.redstone:2:28, line 2 column 28
+stopped: d38_test_type.easium:2:28, line 2 column 28
  2 | show items in scores until current_item plus 1
    |                            ^^^^^^^^^^^^^^^^^^^
  what: a stop's test needs true or false, but this is an int

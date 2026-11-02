@@ -1,5 +1,5 @@
-not decided yet: d45_unclosed.redstone:2:23, line 2 column 23
+not decided yet: d45_unclosed.easium:2:23, line 2 column 23
  2 | show_using_format "Hi <name"
    |                       ^
  what: a `<` with no `>` in a format
- why:  this part of Redstone's design is still open (D45)
+ why:  this part of Easium's design is still open (D45)

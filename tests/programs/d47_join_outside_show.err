@@ -1,5 +1,5 @@
-not decided yet: d47_join_outside_show.redstone:2:18, line 2 column 18
+not decided yet: d47_join_outside_show.easium:2:18, line 2 column 18
  2 | greeting = "Hi " plus name
    |                  ^^^^
  what: joining text with `plus` outside `show`
- why:  this part of Redstone's design is still open (D47)
+ why:  this part of Easium's design is still open (D47)

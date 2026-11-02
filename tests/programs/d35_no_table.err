@@ -1,4 +1,4 @@
-stopped: d35_no_table.redstone:1:24, line 1 column 24
+stopped: d35_no_table.easium:1:24, line 1 column 24
  1 | value at position 1 in scores becomes 5
    |                        ^^^^^^
  what: there's no `scores`

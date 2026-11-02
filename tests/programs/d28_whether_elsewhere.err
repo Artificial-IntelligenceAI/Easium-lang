@@ -1,5 +1,5 @@
-not decided yet: d28_whether_elsewhere.redstone:1:9, line 1 column 9
+not decided yet: d28_whether_elsewhere.easium:1:9, line 1 column 9
  1 | adult = whether 20 at_least 18
    |         ^^^^^^^
  what: `whether` anywhere but right after `show`
- why:  this part of Redstone's design is still open (D28)
+ why:  this part of Easium's design is still open (D28)

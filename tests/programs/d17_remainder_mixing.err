@@ -1,5 +1,5 @@
-not decided yet: d17_remainder_mixing.redstone:1:20, line 1 column 20
+not decided yet: d17_remainder_mixing.easium:1:20, line 1 column 20
  1 | show 7 remainder 2 plus 1
    |                    ^^^^
  what: `remainder` beside other arithmetic without parentheses
- why:  this part of Redstone's design is still open (D17)
+ why:  this part of Easium's design is still open (D17)

@@ -1,8 +1,8 @@
 lives = 3
 guess = "stone"
-lives becomes lives minus 1 if guess is_not "redstone"
+lives becomes lives minus 1 if guess is_not "easium"
 show lives
-lives becomes 0 if guess is "redstone"
+lives becomes 0 if guess is "easium"
 show lives
 ages = table:
 "Ada": 36

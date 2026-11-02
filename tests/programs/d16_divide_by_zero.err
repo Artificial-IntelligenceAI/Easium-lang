@@ -1,5 +1,5 @@
-not decided yet: d16_divide_by_zero.redstone:1:6, line 1 column 6
+not decided yet: d16_divide_by_zero.easium:1:6, line 1 column 6
  1 | show 1 divided_by 0
    |      ^^^^^^^^^^^^^^
  what: what dividing by zero does
- why:  this part of Redstone's design is still open (D16)
+ why:  this part of Easium's design is still open (D16)

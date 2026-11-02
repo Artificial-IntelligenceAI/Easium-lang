@@ -1,4 +1,4 @@
-stopped: d35_wrong_type.redstone:2:39, line 2 column 39
+stopped: d35_wrong_type.easium:2:39, line 2 column 39
  2 | value at position 1 in scores becomes "high"
    |                                       ^^^^^^
  what: this item is an int, so it can't become text

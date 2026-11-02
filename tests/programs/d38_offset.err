@@ -1,5 +1,5 @@
-not decided yet: d38_offset.redstone:2:28, line 2 column 28
+not decided yet: d38_offset.easium:2:28, line 2 column 28
  2 | show items in scores until offset 1
    |                            ^^^^^^
  what: stopping at an offset
- why:  this part of Redstone's design is still open (D38)
+ why:  this part of Easium's design is still open (D38)

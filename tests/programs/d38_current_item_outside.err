@@ -1,4 +1,4 @@
-stopped: d38_current_item_outside.redstone:1:6, line 1 column 6
+stopped: d38_current_item_outside.easium:1:6, line 1 column 6
  1 | show current_item
    |      ^^^^^^^^^^^^
  what: there's no `current_item`

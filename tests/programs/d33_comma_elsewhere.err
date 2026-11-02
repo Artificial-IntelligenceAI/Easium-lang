@@ -1,5 +1,5 @@
-not decided yet: d33_comma_elsewhere.redstone:1:7, line 1 column 7
+not decided yet: d33_comma_elsewhere.easium:1:7, line 1 column 7
  1 | show 1, 2
    |       ^
  what: a comma anywhere but in a table right after `=` or `becomes`
- why:  this part of Redstone's design is still open (D33)
+ why:  this part of Easium's design is still open (D33)

@@ -8,11 +8,11 @@ edition = "2024"
 publish = false
 
 [workspace.dependencies]
-redstone-bytecode = { path = "crates/bytecode" }
-redstone-cranelift = { path = "crates/cranelift" }
-redstone-front = { path = "crates/front" }
-redstone-interp = { path = "crates/interp" }
-redstone-runtime = { path = "crates/runtime" }
+easium-bytecode = { path = "crates/bytecode" }
+easium-cranelift = { path = "crates/cranelift" }
+easium-front = { path = "crates/front" }
+easium-interp = { path = "crates/interp" }
+easium-runtime = { path = "crates/runtime" }
 
 # Rules 4–6: clippy pedantic, warnings as errors; unsafe only where a module allows it, with reasons; no unwrap or
 # expect outside tests.

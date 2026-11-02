@@ -1,4 +1,4 @@
-stopped: d22_condition_type.redstone:1:4, line 1 column 4
+stopped: d22_condition_type.easium:1:4, line 1 column 4
  1 | if 5:
    |    ^
  what: an `if` needs true or false, but this is an int

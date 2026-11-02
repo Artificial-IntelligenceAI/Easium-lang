@@ -5,9 +5,9 @@ use std::cmp::Ordering;
 use std::io::{BufRead, Write};
 use std::rc::Rc;
 
-use redstone_front::ir::{Comparison, Counting};
-use redstone_front::{Diagnostic, Span};
-use redstone_runtime::{Rational, RationalError, Table, Value};
+use easium_front::ir::{Comparison, Counting};
+use easium_front::{Diagnostic, Span};
+use easium_runtime::{Rational, RationalError, Table, Value};
 
 use crate::compile::Code;
 use crate::op::{Op, Piece, Reg};

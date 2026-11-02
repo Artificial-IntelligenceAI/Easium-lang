@@ -1,4 +1,4 @@
-stopped: d47_show_cant_join.redstone:2:12, line 2 column 12
+stopped: d47_show_cant_join.easium:2:12, line 2 column 12
  2 | show "Hi " plus name
    |            ^^^^
  what: `show` can't join text with `plus`

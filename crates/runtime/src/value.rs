@@ -1,4 +1,4 @@
-//! The values a running Redstone program holds.
+//! The values a running Easium program holds.
 
 use std::rc::Rc;
 

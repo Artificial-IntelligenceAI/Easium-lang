@@ -1,4 +1,4 @@
-stopped: d44_trailing_if_on_create.redstone:2:12, line 2 column 12
+stopped: d44_trailing_if_on_create.easium:2:12, line 2 column 12
  2 | bonus = 10 if lucky
    |            ^^
  what: `=` can't take a trailing `if`

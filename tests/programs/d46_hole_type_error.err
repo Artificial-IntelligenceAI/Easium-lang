@@ -1,4 +1,4 @@
-stopped: d46_hole_type_error.redstone:1:33, line 1 column 33
+stopped: d46_hole_type_error.easium:1:33, line 1 column 33
  1 | show_using_format "Sum: <1 plus "a">"
    |                                 ^^^
  what: `plus` needs numbers, but this is text

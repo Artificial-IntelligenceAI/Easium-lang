@@ -1,4 +1,4 @@
-stopped: d45_unknown_name.redstone:1:24, line 1 column 24
+stopped: d45_unknown_name.easium:1:24, line 1 column 24
  1 | show_using_format "Hi <nmae>"
    |                        ^^^^
  what: there's no `nmae`

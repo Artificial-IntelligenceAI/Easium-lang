@@ -1,5 +1,5 @@
 [package]
-name = "redstone-cranelift"
+name = "easium-cranelift"
 version.workspace = true
 edition.workspace = true
 publish.workspace = true
@@ -8,9 +8,9 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
-redstone-bytecode.workspace = true
-redstone-front.workspace = true
-redstone-runtime.workspace = true
+easium-bytecode.workspace = true
+easium-front.workspace = true
+easium-runtime.workspace = true
 cranelift-codegen = "0.136.0"
 cranelift-frontend = "0.136.0"
 cranelift-jit = "0.136.0"

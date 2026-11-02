@@ -1,5 +1,5 @@
-not decided yet: d06_float_spelling.redstone:1:9, line 1 column 9
+not decided yet: d06_float_spelling.easium:1:9, line 1 column 9
  1 | speed = ~0.1
    |         ^
  what: how a binary float is written
- why:  this part of Redstone's design is still open (D6)
+ why:  this part of Easium's design is still open (D6)

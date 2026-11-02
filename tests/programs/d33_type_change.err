@@ -1,4 +1,4 @@
-stopped: d33_type_change.redstone:2:16, line 2 column 16
+stopped: d33_type_change.easium:2:16, line 2 column 16
  2 | scores becomes "a", "b"
    |                ^^^^^^^^
  what: `scores` is an in-order table of ints, so it can't become an in-order table of text

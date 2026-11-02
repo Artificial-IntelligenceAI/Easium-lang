@@ -2,9 +2,9 @@
 
 use std::rc::Rc;
 
-use redstone_front::Span;
-use redstone_front::ir::{Comparison, Counting};
-use redstone_runtime::{Rational, Value};
+use easium_front::Span;
+use easium_front::ir::{Comparison, Counting};
+use easium_runtime::{Rational, Value};
 
 /// A register, named by the file it lives in. Booleans live in the int file as 0 or 1.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

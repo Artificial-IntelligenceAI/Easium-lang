@@ -1,4 +1,4 @@
-stopped: d34_wrong_kind.redstone:2:22, line 2 column 22
+stopped: d34_wrong_kind.easium:2:22, line 2 column 22
  2 | show value of "a" in scores
    |                      ^^^^^^
  what: `value of` reads a keyed table, but this is an in-order table of ints

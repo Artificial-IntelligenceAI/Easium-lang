@@ -1,4 +1,4 @@
-stopped: d46_hole_extra.redstone:2:25, line 2 column 25
+stopped: d46_hole_extra.easium:2:25, line 2 column 25
  2 | show_using_format "<age age>"
    |                         ^^^
  what: expected the end of the hole, but found `age`

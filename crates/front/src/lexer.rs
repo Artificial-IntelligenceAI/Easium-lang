@@ -1,11 +1,11 @@
 //! Splits source text into tokens. A space always separates two things, and one thing never holds a space, except
 //! text inside quotes.
 
-use redstone_runtime::{Rational, RationalError};
+use easium_runtime::{Rational, RationalError};
 
 use crate::diagnostic::{Diagnostic, Span};
 
-/// A word Redstone reserves.
+/// A word Easium reserves.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Keyword {
     /// `show`
@@ -153,7 +153,7 @@ pub struct Token {
 ///
 /// # Errors
 ///
-/// A character or spelling Redstone doesn't use, or one whose design is still open.
+/// A character or spelling Easium doesn't use, or one whose design is still open.
 pub fn lex(source: &str) -> Result<Vec<Token>, Diagnostic> {
     lex_at(source, 0)
 }
@@ -209,7 +209,7 @@ impl Lexer<'_> {
                 ')' => self.single(TokenKind::CloseParen, start),
                 '=' if self.peek_at(1).is_some_and(|(_, next)| next == '=') => {
                     return Err(Diagnostic::mistake(
-                        "Redstone doesn't use `==`",
+                        "Easium doesn't use `==`",
                         Span::new(start, start + 2),
                     )
                     .because("`is` compares two things; `=` makes a variable"));
@@ -438,12 +438,12 @@ impl Lexer<'_> {
                 }
             }
             '\u{201C}' | '\u{201D}' => Diagnostic::mistake(
-                "Redstone doesn't use curly quotes",
+                "Easium doesn't use curly quotes",
                 Span::new(start, start + character.len_utf8()),
             )
             .fix(&character.to_string(), "\""),
             _ => Diagnostic::mistake(
-                format!("Redstone doesn't use `{character}`"),
+                format!("Easium doesn't use `{character}`"),
                 Span::new(start, start + character.len_utf8()),
             ),
         }

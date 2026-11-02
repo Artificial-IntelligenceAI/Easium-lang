@@ -1,4 +1,4 @@
-stopped: d42_is_now.redstone:2:5, line 2 column 5
+stopped: d42_is_now.easium:2:5, line 2 column 5
  2 | age is_now 19
    |     ^^^^^^
  fix:  `is_now` → `becomes`

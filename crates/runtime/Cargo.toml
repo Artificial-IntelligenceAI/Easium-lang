@@ -1,5 +1,5 @@
 [package]
-name = "redstone-runtime"
+name = "easium-runtime"
 version.workspace = true
 edition.workspace = true
 publish.workspace = true

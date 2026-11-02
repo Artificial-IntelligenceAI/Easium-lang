@@ -1,4 +1,4 @@
-stopped: d34_position_out_of_range.redstone:2:24, line 2 column 24
+stopped: d34_position_out_of_range.easium:2:24, line 2 column 24
  2 | show value at position 4 in scores
    |                        ^
  what: there's no position 4 in this table

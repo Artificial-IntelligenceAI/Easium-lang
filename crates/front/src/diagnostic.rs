@@ -35,7 +35,7 @@ pub enum Kind {
     Mistake,
     /// The program uses something whose design is still open in `DECISIONS.md` (rule 2): `not decided yet:`.
     NotDecided,
-    /// Something went wrong inside Redstone itself (rule 6).
+    /// Something went wrong inside Easium itself (rule 6).
     Bug,
 }
 
@@ -71,8 +71,8 @@ impl Diagnostic {
     #[must_use]
     pub fn not_decided(what: impl Into<String>, decision: Option<&str>, span: Span) -> Self {
         let why = match decision {
-            Some(decision) => format!("this part of Redstone's design is still open ({decision})"),
-            None => "Redstone's design doesn't cover this yet".to_owned(),
+            Some(decision) => format!("this part of Easium's design is still open ({decision})"),
+            None => "Easium's design doesn't cover this yet".to_owned(),
         };
         Self {
             kind: Kind::NotDecided,
@@ -83,7 +83,7 @@ impl Diagnostic {
         }
     }
 
-    /// A failure inside Redstone that a correct program can still reach.
+    /// A failure inside Easium that a correct program can still reach.
     #[must_use]
     pub fn bug(what: impl Into<String>, span: Span) -> Self {
         Self {
@@ -115,7 +115,7 @@ impl Diagnostic {
         let label = match self.kind {
             Kind::Mistake => "stopped",
             Kind::NotDecided => "not decided yet",
-            Kind::Bug => "Redstone's bug, not yours",
+            Kind::Bug => "Easium's bug, not yours",
         };
         let start = floor_char_boundary(source, self.span.start);
         let line_start = source[..start].rfind('\n').map_or(0, |index| index + 1);

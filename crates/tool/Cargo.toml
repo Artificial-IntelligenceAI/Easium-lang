@@ -1,5 +1,5 @@
 [package]
-name = "redstone-tool"
+name = "easium-tool"
 version.workspace = true
 edition.workspace = true
 publish.workspace = true
@@ -8,11 +8,11 @@ publish.workspace = true
 workspace = true
 
 [[bin]]
-name = "redstone"
+name = "easium"
 path = "src/main.rs"
 
 [dependencies]
-redstone-front.workspace = true
-redstone-interp.workspace = true
-redstone-bytecode.workspace = true
-redstone-cranelift.workspace = true
+easium-front.workspace = true
+easium-interp.workspace = true
+easium-bytecode.workspace = true
+easium-cranelift.workspace = true

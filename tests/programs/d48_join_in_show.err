@@ -1,4 +1,4 @@
-stopped: d48_join_in_show.redstone:2:12, line 2 column 12
+stopped: d48_join_in_show.easium:2:12, line 2 column 12
  2 | show "Hi " <-- name
    |            ^^^
  what: `show` can't join text with `<--`

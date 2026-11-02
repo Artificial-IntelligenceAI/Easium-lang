@@ -1,4 +1,4 @@
-//! The bytecode interpreter, Redstone's tier 0 (D52): compiles a checked program to typed bytecode and runs it.
+//! The bytecode interpreter, Easium's tier 0 (D52): compiles a checked program to typed bytecode and runs it.
 //! Its output and errors match the reference interpreter's exactly (rule 10).
 
 mod compile;
@@ -9,9 +9,9 @@ pub use compile::Code;
 
 use std::io::{BufRead, Write};
 
-use redstone_front::Diagnostic;
-use redstone_front::ir::Program;
-use redstone_runtime::{Rational, Value};
+use easium_front::Diagnostic;
+use easium_front::ir::Program;
+use easium_runtime::{Rational, Value};
 
 /// Runs `program`, reading typed lines for `ask` from `input` and writing to `output`.
 ///

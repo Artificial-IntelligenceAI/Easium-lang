@@ -1,7 +1,7 @@
 lives = 3
 repeat until lives is 0:
     guess = ask "Guess: "
-    if guess is_not "redstone":
+    if guess is_not "easium":
         lives becomes lives minus 1
         show "Wrong"
     else:

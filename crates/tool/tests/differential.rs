@@ -1,9 +1,9 @@
-//! Rule 10, tested broadly: random Redstone programs run in the reference interpreter, in tier 0, and in tier 0
+//! Rule 10, tested broadly: random Easium programs run in the reference interpreter, in tier 0, and in tier 0
 //! with every loop compiled by Cranelift, and all three must show the same output and the same error.
 //!
 //! The programs stick to what is decided, with every operation in parentheses so no open precedence question
 //! stops them early. Errors are expected (overflow, a third that can't be shown, a missing position) and must
-//! match too. Set `REDSTONE_FUZZ_COUNT` to run more programs, `REDSTONE_FUZZ_SEED` to start elsewhere.
+//! match too. Set `EASIUM_FUZZ_COUNT` to run more programs, `EASIUM_FUZZ_SEED` to start elsewhere.
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
@@ -349,16 +349,16 @@ fn program(seed: u64) -> String {
 fn run(source: &str, way: &str) -> String {
     let mut output = Vec::new();
     let mut input = std::io::Cursor::new(Vec::new());
-    let result = redstone_front::compile(source).and_then(|program| match way {
-        "reference" => redstone_interp::run(&program, &mut input, &mut output),
-        "tier 0" => redstone_bytecode::run(&program, &mut input, &mut output),
+    let result = easium_front::compile(source).and_then(|program| match way {
+        "reference" => easium_interp::run(&program, &mut input, &mut output),
+        "tier 0" => easium_bytecode::run(&program, &mut input, &mut output),
         _ => {
             let mut tiering =
-                redstone_cranelift::Cranelift::new().map(|compiler| redstone_bytecode::Tiering {
+                easium_cranelift::Cranelift::new().map(|compiler| easium_bytecode::Tiering {
                     compiler: Box::new(compiler),
                     threshold: 0,
                 });
-            redstone_bytecode::run_tiered(&program, &mut input, &mut output, tiering.as_mut())
+            easium_bytecode::run_tiered(&program, &mut input, &mut output, tiering.as_mut())
         }
     });
     let mut shown = String::from_utf8(output).unwrap();
@@ -366,7 +366,7 @@ fn run(source: &str, way: &str) -> String {
         let _ = write!(
             shown,
             "--- error ---\n{}",
-            diagnostic.render(source, "fuzz.redstone")
+            diagnostic.render(source, "fuzz.easium")
         );
     }
     shown
@@ -374,11 +374,11 @@ fn run(source: &str, way: &str) -> String {
 
 #[test]
 fn every_way_of_running_agrees() {
-    let count: u64 = std::env::var("REDSTONE_FUZZ_COUNT")
+    let count: u64 = std::env::var("EASIUM_FUZZ_COUNT")
         .ok()
         .and_then(|count| count.parse().ok())
         .unwrap_or(400);
-    let start: u64 = std::env::var("REDSTONE_FUZZ_SEED")
+    let start: u64 = std::env::var("EASIUM_FUZZ_SEED")
         .ok()
         .and_then(|seed| seed.parse().ok())
         .unwrap_or(1);
@@ -387,13 +387,13 @@ fn every_way_of_running_agrees() {
         let source = program(seed);
         let reference = run(&source, "reference");
         assert!(
-            redstone_front::compile(&source).is_ok(),
+            easium_front::compile(&source).is_ok(),
             "seed {seed}: the generator wrote a program that doesn't check:\n{source}\n{reference}"
         );
         if reference.contains("--- error ---") {
             checked_errors += 1;
         }
-        if std::env::var_os("REDSTONE_FUZZ_STATS").is_some() && seed < start + 3 {
+        if std::env::var_os("EASIUM_FUZZ_STATS").is_some() && seed < start + 3 {
             eprintln!("=== seed {seed}\n{source}--- runs to ---\n{reference}");
         }
         for way in ["tier 0", "cranelift"] {
@@ -404,7 +404,7 @@ fn every_way_of_running_agrees() {
             );
         }
     }
-    if std::env::var_os("REDSTONE_FUZZ_STATS").is_some() {
+    if std::env::var_os("EASIUM_FUZZ_STATS").is_some() {
         eprintln!("{checked_errors} of {count} programs ended in an error");
     }
     // The generator should reach errors as well as clean runs, or the errors go untested.

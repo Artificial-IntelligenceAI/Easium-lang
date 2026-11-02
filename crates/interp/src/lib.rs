@@ -5,11 +5,11 @@ use std::cmp::Ordering;
 use std::io::{BufRead, Write};
 use std::rc::Rc;
 
-use redstone_front::ir::{
+use easium_front::ir::{
     Arithmetic, Comparison, Counting, Expr, ExprKind, FormatPart, Program, Selector, Stmt, Stop,
 };
-use redstone_front::{Diagnostic, Span};
-use redstone_runtime::{Rational, RationalError, Table, Value};
+use easium_front::{Diagnostic, Span};
+use easium_runtime::{Rational, RationalError, Table, Value};
 
 /// Runs `program`, reading typed lines for `ask` from `input` and writing to `output`.
 ///

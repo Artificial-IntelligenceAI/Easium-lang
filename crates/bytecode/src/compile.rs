@@ -1,11 +1,11 @@
 //! Compiles a checked program to bytecode. Every value is worked out in the same order as in the reference
 //! interpreter, so the output and the errors match it exactly (rule 10).
 
-use redstone_front::ir::{
+use easium_front::ir::{
     Arithmetic, Comparison, Expr, ExprKind, FormatPart, Program, Selector, Stmt, Stop, Type,
 };
-use redstone_front::{Diagnostic, Span};
-use redstone_runtime::Value;
+use easium_front::{Diagnostic, Span};
+use easium_runtime::Value;
 
 use crate::op::{Op, Piece, Reg};
 
@@ -25,7 +25,7 @@ pub struct Code {
 ///
 /// # Errors
 ///
-/// Only Redstone's own bugs: a program the checker passed always compiles.
+/// Only Easium's own bugs: a program the checker passed always compiles.
 pub(crate) fn compile(program: &Program) -> Result<Code, Diagnostic> {
     let mut compiler = Compiler {
         ops: Vec::new(),

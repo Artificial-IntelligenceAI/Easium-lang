@@ -206,6 +206,58 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4f016b9994e39cad68107f33fa5b8dcee8fb7e38332bde3f97690e5e8abe1b10"
 
 [[package]]
+name = "easium-bytecode"
+version = "0.1.0"
+dependencies = [
+ "easium-front",
+ "easium-runtime",
+]
+
+[[package]]
+name = "easium-cranelift"
+version = "0.1.0"
+dependencies = [
+ "cranelift-codegen",
+ "cranelift-frontend",
+ "cranelift-jit",
+ "cranelift-module",
+ "cranelift-native",
+ "easium-bytecode",
+ "easium-front",
+ "easium-runtime",
+]
+
+[[package]]
+name = "easium-front"
+version = "0.1.0"
+dependencies = [
+ "easium-runtime",
+ "unicode-segmentation",
+]
+
+[[package]]
+name = "easium-interp"
+version = "0.1.0"
+dependencies = [
+ "easium-front",
+ "easium-runtime",
+]
+
+[[package]]
+name = "easium-runtime"
+version = "0.1.0"
+
+[[package]]
+name = "easium-tool"
+version = "0.1.0"
+dependencies = [
+ "easium-bytecode",
+ "easium-cranelift",
+ "easium-front",
+ "easium-interp",
+]
+
+[[package]]
 name = "equivalent"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -318,58 +370,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1fbf4db142a473a8d80c26bbf18454ed458bf8d26c8219c331daecfdbd079001"
 dependencies = [
  "proc-macro2",
-]
-
-[[package]]
-name = "redstone-bytecode"
-version = "0.1.0"
-dependencies = [
- "redstone-front",
- "redstone-runtime",
-]
-
-[[package]]
-name = "redstone-cranelift"
-version = "0.1.0"
-dependencies = [
- "cranelift-codegen",
- "cranelift-frontend",
- "cranelift-jit",
- "cranelift-module",
- "cranelift-native",
- "redstone-bytecode",
- "redstone-front",
- "redstone-runtime",
-]
-
-[[package]]
-name = "redstone-front"
-version = "0.1.0"
-dependencies = [
- "redstone-runtime",
- "unicode-segmentation",
-]
-
-[[package]]
-name = "redstone-interp"
-version = "0.1.0"
-dependencies = [
- "redstone-front",
- "redstone-runtime",
-]
-
-[[package]]
-name = "redstone-runtime"
-version = "0.1.0"
-
-[[package]]
-name = "redstone-tool"
-version = "0.1.0"
-dependencies = [
- "redstone-bytecode",
- "redstone-cranelift",
- "redstone-front",
- "redstone-interp",
 ]
 
 [[package]]

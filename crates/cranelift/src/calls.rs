@@ -14,8 +14,8 @@
 
 use std::cmp::Ordering;
 
-use redstone_bytecode::{CompiledLoop, Registers};
-use redstone_runtime::{Rational, Table, Value};
+use easium_bytecode::{CompiledLoop, Registers};
+use easium_runtime::{Rational, Table, Value};
 
 /// A compiled loop's machine code: `(ints, rationals, rationals' length, objects, objects' length)` to the
 /// instruction tier 0 goes on from.

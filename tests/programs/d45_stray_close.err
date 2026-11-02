@@ -1,5 +1,5 @@
-not decided yet: d45_stray_close.redstone:1:22, line 1 column 22
+not decided yet: d45_stray_close.easium:1:22, line 1 column 22
  1 | show_using_format "5 > 3"
    |                      ^
  what: a `>` outside a hole in a format
- why:  this part of Redstone's design is still open (D45)
+ why:  this part of Easium's design is still open (D45)

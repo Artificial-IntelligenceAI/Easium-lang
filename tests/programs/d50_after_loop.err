@@ -1,4 +1,4 @@
-stopped: d50_after_loop.redstone:4:6, line 4 column 6
+stopped: d50_after_loop.easium:4:6, line 4 column 6
  4 | show current_round
    |      ^^^^^^^^^^^^^
  what: there's no `current_round`

@@ -1,4 +1,4 @@
-stopped: d41_stop_outside.redstone:1:1, line 1 column 1
+stopped: d41_stop_outside.easium:1:1, line 1 column 1
  1 | stop
    | ^^^^
  what: this `stop` isn't inside a loop

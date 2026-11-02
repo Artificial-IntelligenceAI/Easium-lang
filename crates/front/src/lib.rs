@@ -1,4 +1,4 @@
-//! Redstone's front end: source text to a checked program (D8).
+//! Easium's front end: source text to a checked program (D8).
 
 pub mod ast;
 pub mod checker;

@@ -1,5 +1,5 @@
-not decided yet: d22_block_variable.redstone:4:6, line 4 column 6
+not decided yet: d22_block_variable.easium:4:6, line 4 column 6
  4 | show x
    |      ^
  what: whether `x`, made inside an `if` block, exists after the block ends
- why:  this part of Redstone's design is still open (D22)
+ why:  this part of Easium's design is still open (D22)

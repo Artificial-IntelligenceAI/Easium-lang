@@ -1,4 +1,4 @@
-stopped: d34_position_type.redstone:2:24, line 2 column 24
+stopped: d34_position_type.easium:2:24, line 2 column 24
  2 | show value at position 0.5 in scores
    |                        ^^^
  what: a position is an int, but this is a rational

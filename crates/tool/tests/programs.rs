@@ -1,7 +1,7 @@
 //! Runs every program in `tests/programs` (rule 9) and checks that each traced decision has one.
 //!
-//! Each `name.redstone` has `name.out`, its expected output, and, when it should fail, `name.err`, the expected
-//! error. `name.in` holds what gets typed for `ask`. With `REDSTONE_BLESS=1` set, the expected files are rewritten
+//! Each `name.easium` has `name.out`, its expected output, and, when it should fail, `name.err`, the expected
+//! error. `name.in` holds what gets typed for `ask`. With `EASIUM_BLESS=1` set, the expected files are rewritten
 //! from what actually happens, to be reviewed before committing.
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
@@ -26,7 +26,7 @@ fn programs() -> Vec<PathBuf> {
         .map(|entry| entry.unwrap().path())
         .filter(|path| {
             path.extension()
-                .is_some_and(|extension| extension == "redstone")
+                .is_some_and(|extension| extension == "easium")
         })
         .collect();
     programs.sort();
@@ -61,7 +61,7 @@ fn wait_at_most(child: Child, limit: Duration) -> Option<Output> {
 
 #[test]
 fn every_program_behaves_as_expected() {
-    let bless = std::env::var_os("REDSTONE_BLESS").is_some();
+    let bless = std::env::var_os("EASIUM_BLESS").is_some();
     let mut failures = Vec::new();
     let programs = programs();
     assert!(!programs.is_empty(), "no test programs found");
@@ -80,11 +80,11 @@ fn every_program_behaves_as_expected() {
     }) {
         let name = program.file_name().unwrap().to_str().unwrap();
         let input = fs::read(program.with_extension("in")).unwrap_or_default();
-        let mut child = Command::new(env!("CARGO_BIN_EXE_redstone"))
+        let mut child = Command::new(env!("CARGO_BIN_EXE_easium"))
             .arg("run")
             .arg(name)
             .env(
-                "REDSTONE_INTERPRETER",
+                "EASIUM_INTERPRETER",
                 if interpreter == "reference" {
                     "reference"
                 } else {
@@ -92,7 +92,7 @@ fn every_program_behaves_as_expected() {
                 },
             )
             .env(
-                "REDSTONE_JIT",
+                "EASIUM_JIT",
                 if interpreter == "cranelift" {
                     "always"
                 } else {

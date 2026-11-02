@@ -1,4 +1,4 @@
-stopped: d25_end_of_spelling.redstone:3:1, line 3 column 1
+stopped: d25_end_of_spelling.easium:3:1, line 3 column 1
  3 | end of if
    | ^^^^^^
  fix:  `end of` → `end_of`

@@ -1,4 +1,4 @@
-# Redstone
+# Easium
 
 A friendly language, like Ruby: for people who want to make things without getting into a whole new world, with
 some programmer things for programmers who want to use it (D1). Small projects to show off, that can still grow
@@ -24,10 +24,10 @@ code that implements them are in [`IMPLEMENTATION-RULES.md`](IMPLEMENTATION-RULE
 Needs Rust 1.96 or newer.
 
 ```
-cargo run --release -p redstone-tool -- run program.redstone
+cargo run --release -p easium-tool -- run program.easium
 ```
 
-The tool's name (`redstone`) and the `.redstone` extension are placeholders; the manifest (D10) isn't built yet,
+The tool's name (`easium`) and the `.easium` extension are placeholders; the manifest (D10) isn't built yet,
 so a file runs on its own.
 
 ## How a program runs
@@ -50,9 +50,9 @@ Settings for checking by hand:
 
 | Variable | Effect |
 |---|---|
-| `REDSTONE_INTERPRETER=reference` | run in the reference interpreter |
-| `REDSTONE_JIT=off` | keep every loop in tier 0 |
-| `REDSTONE_JIT=always` | compile every loop at its first round |
+| `EASIUM_INTERPRETER=reference` | run in the reference interpreter |
+| `EASIUM_JIT=off` | keep every loop in tier 0 |
+| `EASIUM_JIT=always` | compile every loop at its first round |
 
 ## Testing
 
@@ -60,12 +60,12 @@ Settings for checking by hand:
 cargo test
 ```
 
-- **`tests/programs`**: one small program per file, named after the decision it covers (`d34_read.redstone`),
+- **`tests/programs`**: one small program per file, named after the decision it covers (`d34_read.easium`),
   with its expected output (`.out`), error (`.err`) and typed input (`.in`). Each runs three ways (tier 0, tier 0
-  with every loop compiled, and the reference), and all three must match. `REDSTONE_BLESS=1 cargo test` rewrites
+  with every loop compiled, and the reference), and all three must match. `EASIUM_BLESS=1 cargo test` rewrites
   the expected files from the reference, to review before committing.
 - **The differential fuzzer** (`crates/tool/tests/differential.rs`): random programs from the decided syntax, run
-  the same three ways. `REDSTONE_FUZZ_COUNT` and `REDSTONE_FUZZ_SEED` run more.
+  the same three ways. `EASIUM_FUZZ_COUNT` and `EASIUM_FUZZ_SEED` run more.
 - A test fails the build when code names a decision (`// D7`) that has no test program (rule 3).
 
 `cargo clippy --all-targets -- -D warnings` runs at the pedantic level (rule 4).

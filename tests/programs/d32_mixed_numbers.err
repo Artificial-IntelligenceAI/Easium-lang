@@ -1,5 +1,5 @@
-not decided yet: d32_mixed_numbers.redstone:1:13, line 1 column 13
+not decided yet: d32_mixed_numbers.easium:1:13, line 1 column 13
  1 | scores = 1, 0.5
    |             ^^^
  what: a table mixing ints and rationals
- why:  this part of Redstone's design is still open (D32)
+ why:  this part of Easium's design is still open (D32)

@@ -1,4 +1,4 @@
-stopped: d20_equal_spelling.redstone:2:21, line 2 column 21
+stopped: d20_equal_spelling.easium:2:21, line 2 column 21
  2 | show "Adult" if age equal 18
    |                     ^^^^^
  fix:  `equal` → `is`

@@ -1,4 +1,4 @@
-//! Redstone's runtime: the values a running program holds (D8).
+//! Easium's runtime: the values a running program holds (D8).
 
 mod rational;
 mod value;

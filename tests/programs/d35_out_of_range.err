@@ -1,4 +1,4 @@
-stopped: d35_out_of_range.redstone:2:19, line 2 column 19
+stopped: d35_out_of_range.easium:2:19, line 2 column 19
  2 | value at position 3 in scores becomes 1
    |                   ^
  what: there's no position 3 in this table

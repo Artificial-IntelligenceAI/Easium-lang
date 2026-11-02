@@ -1,5 +1,5 @@
-not decided yet: d33_empty.redstone:1:8, line 1 column 8
+not decided yet: d33_empty.easium:1:8, line 1 column 8
  1 | ages = table:
    |        ^^^^^
  what: an empty table
- why:  this part of Redstone's design is still open (D33)
+ why:  this part of Easium's design is still open (D33)

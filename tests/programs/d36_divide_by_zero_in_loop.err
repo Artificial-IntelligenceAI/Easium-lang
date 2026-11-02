@@ -1,5 +1,5 @@
-not decided yet: d36_divide_by_zero_in_loop.redstone:5:22, line 5 column 22
+not decided yet: d36_divide_by_zero_in_loop.easium:5:22, line 5 column 22
  5 |     x becomes x plus 1 divided_by n
    |                      ^^^^^^^^^^^^^^
  what: what dividing by zero does
- why:  this part of Redstone's design is still open (D16)
+ why:  this part of Easium's design is still open (D16)

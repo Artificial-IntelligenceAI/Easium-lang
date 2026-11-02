@@ -1,4 +1,4 @@
-stopped: d34_key_type.redstone:4:15, line 4 column 15
+stopped: d34_key_type.easium:4:15, line 4 column 15
  4 | show value of 1 in ages
    |               ^
  what: this table's keys are text, but this is an int

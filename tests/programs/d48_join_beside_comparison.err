@@ -1,5 +1,5 @@
-not decided yet: d48_join_beside_comparison.redstone:2:8, line 2 column 8
+not decided yet: d48_join_beside_comparison.easium:2:8, line 2 column 8
  2 | same = a <-- "y" is "xy"
    |        ^^^^^^^^^
  what: `<--` beside arithmetic or a comparison without parentheses
- why:  this part of Redstone's design is still open (D48)
+ why:  this part of Easium's design is still open (D48)

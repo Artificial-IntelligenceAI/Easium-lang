@@ -1,4 +1,4 @@
-stopped: d36_missing_position_in_loop.redstone:5:28, line 5 column 28
+stopped: d36_missing_position_in_loop.easium:5:28, line 5 column 28
  5 |     show value at position i in scores
    |                            ^
  what: there's no position 4 in this table

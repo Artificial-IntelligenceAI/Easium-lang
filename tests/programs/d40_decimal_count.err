@@ -1,4 +1,4 @@
-stopped: d40_decimal_count.redstone:1:11, line 1 column 11
+stopped: d40_decimal_count.easium:1:11, line 1 column 11
  1 | show "Hi" 2.5x
    |           ^^^^
  what: a count is a whole number
